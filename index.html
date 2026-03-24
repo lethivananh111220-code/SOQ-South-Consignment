@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Automated Ordering Platform</title>
+    <!-- Use Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Load custom styles -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Load XLSX library for Excel parsing and exporting -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo">
+                <h2>WM Orders</h2>
+            </div>
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active" id="nav-dashboard">Bảng tính SOQ</a>
+                <a href="#" class="nav-item" id="nav-history">Lịch sử tải lên</a>
+                <a href="#" class="nav-item" id="nav-settings">Cài đặt</a>
+            </nav>
+            <div class="user-profile">
+                <div class="avatar">Admin</div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-header">
+                <h1>Hệ thống tính toán Đơn đặt hàng (SOQ)</h1>
+                <p>Tải lên các file báo cáo thực tế để hệ thống chuẩn hóa, đối chiếu và tự động tính toán nhu cầu đặt hàng cho chu kỳ tiếp theo.</p>
+            </header>
+
+            <section class="upload-section">
+                <div class="upload-grid">
+                    <!-- File input cards -->
+                    <div class="upload-card">
+                        <h3>1. Lịch giao hàng (Schedule)</h3>
+                        <p>File mẫu định dạng: <i>Lịch + ngày từ - đến (VD: Lịch 2003-2203.xlsx)</i></p>
+                        <input type="file" id="file-schedule" class="file-input" accept=".csv, .xlsx, .xls">
+                        <label for="file-schedule" class="btn-upload">Tải lên file Giao hàng</label>
+                        <span class="file-status" id="status-schedule">Chưa có file</span>
+                    </div>
+
+                    <div class="upload-card">
+                        <h3>2. Tồn kho & Hủy</h3>
+                        <p>File mẫu định dạng: <i>merchandiser_report_...</i></p>
+                        <input type="file" id="file-inventory" class="file-input" accept=".csv, .xlsx, .xls">
+                        <label for="file-inventory" class="btn-upload">Tải lên file Merchandiser</label>
+                        <span class="file-status" id="status-inventory">Chưa có file</span>
+                    </div>
+
+                    <div class="upload-card">
+                        <h3>3. Số lượng hàng nhập (Input ODA)</h3>
+                        <p>File mẫu định dạng: <i>Sell-Report-Download-...</i></p>
+                        <input type="file" id="file-input" class="file-input" accept=".csv, .xlsx, .xls">
+                        <label for="file-input" class="btn-upload">Tải lên file Sell-Report</label>
+                        <span class="file-status" id="status-input">Chưa có file</span>
+                    </div>
+
+                    <div class="upload-card">
+                        <h3>4A. Doanh số Tháng (Monthly)</h3>
+                        <p>File mẫu định dạng: <i>Monthly WM revenue...</i></p>
+                        <input type="file" id="file-monthly" class="file-input" accept=".csv, .xlsx, .xls">
+                        <label for="file-monthly" class="btn-upload">Tải lên file Monthly Sales</label>
+                        <span class="file-status" id="status-monthly">Chưa có file</span>
+                    </div>
+
+                    <div class="upload-card">
+                        <h3>4B. Doanh số Tuần (Weekly)</h3>
+                        <p>File mẫu định dạng: <i>W11 DHF...</i></p>
+                        <input type="file" id="file-weekly" class="file-input" accept=".csv, .xlsx, .xls">
+                        <label for="file-weekly" class="btn-upload">Tải lên file Weekly Sales</label>
+                        <span class="file-status" id="status-weekly">Chưa có file</span>
+                    </div>
+                    
+                     <div class="upload-card">
+                        <h3>5. Mapping Sản Phẩm</h3>
+                        <p>Dùng để map tên sản phẩm POS WM sang mã nội bộ</p>
+                        <input type="file" id="file-mapping" class="file-input" accept=".csv, .xlsx, .xls">
+                        <label for="file-mapping" class="btn-upload">Tải lên file mapping</label>
+                        <span class="file-status" id="status-mapping">Tùy chọn</span>
+                    </div>
+                </div>
+                
+                <div class="action-panel">
+                    <div class="filter-box" style="margin-bottom: 20px; text-align: center; background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px;">
+                        <label style="font-weight: 600; color: var(--light); margin-right: 15px;"><i class="fas fa-calendar-day" style="color: var(--primary)"></i> Ngày giao hàng:</label>
+                        <select id="targetDeliveryDate" style="padding: 10px 15px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); outline: none; text-align: center; font-weight: bold; font-size: 1.05em; background: #fff; color: #333; cursor: pointer;">
+                            <!-- Tu dong sinh Javascript (1-31) -->
+                        </select>
+                        <small style="display: block; margin-top: 8px; color: var(--text-muted);">Web tự quy đổi Ngày Sang Thứ (hoặc Ngày) để khớp với Header ma trận Lịch.</small>
+                    </div>
+                    <button class="btn-primary" id="btn-calculate" disabled>Tiến hành tính SOQ</button>
+                    <button class="btn-secondary" id="btn-export" style="display: none;">Xuất File Excel</button>
+                </div>
+            </section>
+
+            <section class="results-section" id="results-section" style="display: none;">
+                <h2>Kết Quả Dự Báo</h2>
+                <div class="table-container">
+                    <table class="data-table" id="soq-table">
+                        <thead>
+                            <tr>
+                                <th>Mã SAP (Store)</th>
+                                <th>Tên Cửa Hàng</th>
+                                <th>Tên Sản Phẩm</th>
+                                <th>Trung Bình Bán/Ngày</th>
+                                <th>Xu Hướng (%)</th>
+                                <th title="Trung bình bán Thứ 2 - Thứ 5">ADS T2-T5</th>
+                                <th title="Trung bình bán Thứ 6 - Chủ Nhật">ADS T6-CN</th>
+                                <th title="Tăng trưởng Sức mua cuối tuần so với ngày thường">Tăng trưởng (%)</th>
+                                <th>Leadtime</th>
+                                <th>Total Demand</th>
+                                <th>Tồn (Inv)</th>
+                                <th>Nhập (Input)</th>
+                                <th>Giảm trừ (Penalty)</th>
+                                <th>SOQ (Đơn đặt)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="soq-tbody">
+                            <!-- Data populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
