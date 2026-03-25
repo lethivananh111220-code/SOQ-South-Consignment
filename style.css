@@ -229,6 +229,8 @@ button {
     border-radius: 12px;
     border: 1px solid var(--border);
     overflow-x: auto;
+    overflow-y: auto;
+    max-height: 75vh;
 }
 
 .data-table {
@@ -247,7 +249,11 @@ button {
     color: var(--text-muted);
     text-transform: uppercase;
     font-size: 0.85rem;
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: #1a2235;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 1px 0 var(--border);
 }
 
 .data-table tr:hover td {

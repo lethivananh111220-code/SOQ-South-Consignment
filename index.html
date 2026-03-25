@@ -101,7 +101,18 @@
             </section>
 
             <section class="results-section" id="results-section" style="display: none;">
-                <h2>Kết Quả Dự Báo</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h2 style="margin: 0;">Kết Quả Dự Báo</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-secondary" id="btn-toggle-sidebar" style="padding: 0.5rem 1rem; font-size: 0.85rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <span>◄</span> Ẩn Menu trái
+                        </button>
+                    </div>
+                </div>
+                <div class="search-filters" style="display: flex; gap: 15px; margin-bottom: 20px;">
+                    <input type="text" id="search-store" placeholder="🔍 Tìm theo Tên cửa hàng hoặc SAP..." style="padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white; flex: 1; outline: none; font-size: 14px;">
+                    <input type="text" id="search-product" placeholder="🔍 Tìm theo Tên sản phẩm..." style="padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white; flex: 1; outline: none; font-size: 14px;">
+                </div>
                 <div class="table-container">
                     <table class="data-table" id="soq-table">
                         <thead>
@@ -111,9 +122,9 @@
                                 <th>Tên Sản Phẩm</th>
                                 <th>Trung Bình Bán/Ngày</th>
                                 <th>Xu Hướng (%)</th>
-                                <th title="Trung bình bán Thứ 2 - Thứ 5">ADS T2-T5</th>
-                                <th title="Trung bình bán Thứ 6 - Chủ Nhật">ADS T6-CN</th>
-                                <th title="Tăng trưởng Sức mua cuối tuần so với ngày thường">Tăng trưởng (%)</th>
+                                <th title="Trung bình bán Thứ 2 - Thứ 6">ADS T2-T6</th>
+                                <th title="Trung bình bán Thứ 7 - Chủ Nhật">ADS T7-CN</th>
+                                <th title="Tăng trưởng sức bán trong chu kỳ Leadtime so với trung bình tháng">Tăng trưởng theo leadtime (%)</th>
                                 <th>Leadtime</th>
                                 <th>Total Demand</th>
                                 <th>Tồn (Inv)</th>
