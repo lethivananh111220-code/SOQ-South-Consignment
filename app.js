@@ -512,6 +512,9 @@ btnCalculate.addEventListener('click', () => {
                     let possibleNextWeekdayIdx = [];
                     let possibleNextDigitDays = [];
 
+                    // Khởi tạo biến kiểm tra Chức năng (Function) của Store
+                    let isMer = String(row['function'] || row['Function'] || row['chức năng'] || row['loại'] || '').trim().toLowerCase() === 'mer';
+
                     for (const [key, val] of Object.entries(row)) {
                         let k = String(key).trim();
                         let match = false;
@@ -523,7 +526,6 @@ btnCalculate.addEventListener('click', () => {
                             if (isTargetWeekday) {
                                 match = (headerWeekdayIdx === currentTargetNum);
                             } else if (impliedWeekdayIdx !== -1) {
-                                // Người dùng đang chọn NGÀY (VD 20), Web sẽ tự gán Thứ Sáu (5) = Friday (5)
                                 match = (headerWeekdayIdx === impliedWeekdayIdx);
                             }
                         } else {
@@ -532,7 +534,23 @@ btnCalculate.addEventListener('click', () => {
                         }
 
                         let v = String(val).trim().toLowerCase().replace(/\s+/g, '');
-                        if (v && v !== '0' && v !== 'false' && v !== 'off' && !v.includes('nghỉ') && v !== 'shipper') {
+                        let isDeliveryFound = false;
+
+                        if (v && v !== '0' && v !== 'false' && v !== 'off' && !v.includes('nghỉ')) {
+                            if (isMer) {
+                                // Rule Function Mer: Chịu trách nhiệm giao dịch nếu có mặt NVCH
+                                if (v.includes('shipper') && v.includes('nvch')) {
+                                    isDeliveryFound = true;
+                                } else if (v === 'x' || v === 'yes' || v === 'true' || v.includes('giao')) {
+                                    isDeliveryFound = true; // Fallback an toàn
+                                }
+                            } else {
+                                // Nếu không phải Function Mer (hoặc không có cột Function), mọi tín hiệu như Shipper, X đều tính
+                                isDeliveryFound = true;
+                            }
+                        }
+
+                        if (isDeliveryFound) {
                             if (match) {
                                 hasDelivery = true;
                             }
