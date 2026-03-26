@@ -539,9 +539,10 @@ btnCalculate.addEventListener('click', () => {
                         if (v && v !== '0' && v !== 'false' && v !== 'off' && !v.includes('nghỉ')) {
                             if (isMer) {
                                 // Rule Function Mer: Chịu trách nhiệm giao dịch nếu có mặt NVCH
-                                if (v.includes('shipper') && v.includes('nvch')) {
+                                // Từ chối những CH đi thăm (chỉ ghi "NVCH"). Phải ghi "Shipper+NVCH" hoặc có dấu "+"
+                                if ((v.includes('shipper') && v.includes('nvch')) || (v.includes('nvch') && v.includes('+')) || v.includes('giao')) {
                                     isDeliveryFound = true;
-                                } else if (v === 'x' || v === 'yes' || v === 'true' || v.includes('giao')) {
+                                } else if (v === 'x' || v === 'yes' || v === 'true') {
                                     isDeliveryFound = true; // Fallback an toàn
                                 }
                             } else {
@@ -1051,9 +1052,17 @@ btnCalculate.addEventListener('click', () => {
             let coverageLT = scheduleLeadtimeMap.has(data.storeID) ? scheduleLeadtimeMap.get(data.storeID) : extractLeadtimeFromFilename(scheduleFileName);
 
             let totalLeadtime = leadTimeArrival + coverageLT;
-            // THAY PHƯƠNG PHÁP TÍNH CỐ ĐỊNH BẰNG ĐỘNG THEO LOẠI NGÀY + NHÂN TREND FACTOR
+            
             let basePeriodDemand = calculatePeriodDemand(invDate, totalLeadtime, weekdayAds, weekendAds);
-            let totalDemand = basePeriodDemand * trendFactor;
+            
+            // Tách Demand dự kiến lúc chờ hàng (tránh âm kho dồn vào SOQ gây overstock)
+            let leadTimeDemandBase = calculatePeriodDemand(invDate, leadTimeArrival, weekdayAds, weekendAds);
+            let demandLeadTime = leadTimeDemandBase * trendFactor;
+
+            // Demand kỳ bán SOQ (Chỉ tính Coverage)
+            let coverageStartDate = invDate + (leadTimeArrival * 24 * 60 * 60 * 1000);
+            let coverageDemandBase = calculatePeriodDemand(coverageStartDate, coverageLT, weekdayAds, weekendAds);
+            let totalDemand = coverageDemandBase * trendFactor;
 
             // --- NEW: Tăng trưởng theo Leadtime (Đối chiếu Weekly vs Monthly trên từng Thứ) ---
             let leadtimeGrowth = 0;
@@ -1108,11 +1117,13 @@ btnCalculate.addEventListener('click', () => {
                 return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
             };
 
+            let expectedInvAtArrival = Math.max(0, finalInv + finalInput - demandLeadTime);
+
             let strT = formatDateStr(T);
             let strPrevInv = formatDateStr(invData.prevInvDate);
             let strPrevInput = formatDateStr(inputData.prevInputDate);
 
-            let invTooltip = `Tồn kho lúc T (${strT}): [ ${finalInv.toFixed(2)} ]`;
+            let invTooltip = `Tồn kho lúc T (${strT}): [ ${finalInv.toFixed(2)} ]\n- Trừ nhu cầu bán chờ hàng (${leadTimeArrival.toFixed(1)} ngày): -${demandLeadTime.toFixed(2)}\n=> Tồn dự kiến khi SOQ đến: ${expectedInvAtArrival.toFixed(2)}`;
             let inputTooltip = `Nhập/Giao hàng lúc T (${strT}): [ ${finalInput.toFixed(2)} ]`;
             let disposalTooltip = `KHÔNG PHẠT HỦY (Ratio quá thấp hoặc không đủ gốc chia)`;
 
@@ -1154,7 +1165,7 @@ btnCalculate.addEventListener('click', () => {
                 }
             }
 
-            let soq = totalDemand - finalInv - finalInput;
+            let soq = totalDemand - expectedInvAtArrival;
             soq = Math.max(Math.ceil(soq), 0);
 
             // HIỂN THỊ ĐẦY ĐỦ SOQ NẾU CÓ BẤT KỲ Ý NGHĨA KINH DOANH NÀO
@@ -1184,7 +1195,7 @@ btnCalculate.addEventListener('click', () => {
 
             let tr = document.createElement('tr');
             let totalDemandRaw = totalDemand + penaltyApplied;
-            let breakdownTip = `Công thức: (BaseDemand x TrendFactor) + SafetyStock. \n- BaseDemand: ${basePeriodDemand.toFixed(2)} \n- TrendFactor: ${trendFactor.toFixed(3)} \n- SafetyStock: ${safetyStock.toFixed(2)} \n- Penalty: ${penaltyApplied.toFixed(2)}`;
+            let breakdownTip = `Công thức: (CoverageDemand x TrendFactor) + SafetyStock. \n- CoverageDemand: ${coverageDemandBase.toFixed(2)} \n- TrendFactor: ${trendFactor.toFixed(3)} \n- SafetyStock: ${safetyStock.toFixed(2)} \n- Penalty: ${penaltyApplied.toFixed(2)}`;
 
             tr.innerHTML = `
             <td>${data.storeID}</td>
@@ -1195,7 +1206,7 @@ btnCalculate.addEventListener('click', () => {
                         <td title="Tổng bán thực tế: ${weekdayQty.toFixed(2)} / ${weekdayDaysCount} ngày T2-T6 của Store">${weekdayAds.toFixed(2)}</td>
                         <td title="Tổng bán thực tế: ${weekendQty.toFixed(2)} / ${weekendDaysCount} ngày T7-CN của Store">${weekendAds.toFixed(2)}</td>
             <td><b>${growthHtml}</b></td>
-            <td><span title="Coverage: ${coverageLT} ngày. (Tính cả Arrival +${leadTimeArrival.toFixed(1)} ngày thì Tổng Demand là ${(totalLeadtime).toFixed(1)} ngày bán)">${coverageLT}</span></td>
+            <td><span title="Coverage: ${coverageLT} ngày. (Chỉ tính lượng bán ra trong ${coverageLT} ngày giao hàng, không tính phần thiếu hụt trong ${leadTimeArrival.toFixed(1)} ngày chờ)">${coverageLT}</span></td>
             <td title="${breakdownTip}">${totalDemandRaw.toFixed(2)}</td>
             <td class="warning" title="${invTooltip}">${Number(finalInv.toFixed(2))}</td>
             <td class="highlight" title="${inputTooltip}">${Number(finalInput.toFixed(2))}</td>
