@@ -1095,9 +1095,9 @@ btnCalculate.addEventListener('click', () => {
             let safetyStock = 0;
             if (forecastDay > 0) {
                 if (tierLevel === 1) {
-                    safetyStock = isWeekendDelivery ? (weekendAds * 0.30 * trendFactor) : (weekdayAds * 0.15 * trendFactor);
+                    safetyStock = isWeekendDelivery ? (weekendAds * coverageLT * 0.30 * trendFactor) : (weekdayAds * coverageLT * 0.15 * trendFactor);
                 } else if (tierLevel === 2) {
-                    safetyStock = isWeekendDelivery ? (weekendAds * 0.20 * trendFactor) : (weekdayAds * 0.10 * trendFactor);
+                    safetyStock = isWeekendDelivery ? (weekendAds * coverageLT * 0.20 * trendFactor) : (weekdayAds * coverageLT * 0.10 * trendFactor);
                 }
                 totalDemand += safetyStock;
             }
@@ -1195,7 +1195,7 @@ btnCalculate.addEventListener('click', () => {
 
             let tr = document.createElement('tr');
             let totalDemandRaw = totalDemand + penaltyApplied;
-            let breakdownTip = `Công thức: (CoverageDemand x TrendFactor) + SafetyStock. \n- CoverageDemand: ${coverageDemandBase.toFixed(2)} \n- TrendFactor: ${trendFactor.toFixed(3)} \n- SafetyStock: ${safetyStock.toFixed(2)} \n- Penalty: ${penaltyApplied.toFixed(2)}`;
+            let breakdownTip = `Công thức: Demand (sau Trend) + SafetyStock. \n- Nhu cầu gốc (Coverage): ${coverageDemandBase.toFixed(2)} \n- Hệ số xu hướng: x${trendFactor.toFixed(3)}\n=> Demand (sau Trend): ${(coverageDemandBase * trendFactor).toFixed(2)}\n- SafetyStock: +${safetyStock.toFixed(2)} \n- Penalty (Giảm trừ): -${penaltyApplied.toFixed(2)}`;
 
             tr.innerHTML = `
             <td>${data.storeID}</td>
