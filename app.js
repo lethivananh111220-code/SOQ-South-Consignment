@@ -145,7 +145,16 @@ function handleFileUpload(event, type) {
     reader.onload = function (e) {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
-        const firstSheetName = workbook.SheetNames[0];
+        let firstSheetName = workbook.SheetNames[0];
+        
+        // Theo yêu cầu: Lấy dữ liệu từ sheet "Summary by Products" cho file Input
+        if (type === 'input') {
+            const desiredSheet = workbook.SheetNames.find(sheet => sheet.trim().toLowerCase() === 'summary by products');
+            if (desiredSheet) {
+                firstSheetName = desiredSheet;
+            }
+        }
+        
         const worksheet = workbook.Sheets[firstSheetName];
 
         if (type === 'mapping') {
@@ -769,7 +778,7 @@ btnCalculate.addEventListener('click', () => {
                 let key = `${storeID}_${prodStd.toLowerCase()}`;
                 actualODA_Names.set(prodStd.toLowerCase(), exactODAName);
 
-                let qty = Number(String(row['quantity'] || row['quantityorder'] || row['sldat'] || row['slgiao'] || row['sldathang'] || row['totalqty'] || '0').replace(/,/g, ''));
+                let qty = Number(String(row['deliveredqty'] || row['quantity'] || row['quantityorder'] || row['sldat'] || row['slgiao'] || row['sldathang'] || row['totalqty'] || '0').replace(/,/g, ''));
 
                 // Trích xuất ngày giao hàng/nhập hàng
                 let rawDate = row['orderdate'] || row['Order date'] || row['completeddate'] || row['Completed date'] || row['date'] || 0;
