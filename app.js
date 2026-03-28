@@ -1205,20 +1205,20 @@ btnCalculate.addEventListener('click', () => {
             let storeNameStr = storeNamesMap.get(data.storeID) || data.storeOrig;
 
             finalResults.push({
-                'Mã SAP (Store)': data.storeID,
-                'Tên Cửa Hàng': storeNameStr,
-                'Tên Sản Phẩm': data.bestName,
-                'Trung Bình Bán/Ngày': forecastDay.toFixed(2),
-                'Xu Hướng Bán (%)': trendExport,
-                'ADS T2-T6': weekdayAds.toFixed(2),
-                'ADS T7-CN': weekendAds.toFixed(2),
-                'Tăng trưởng theo leadtime (%)': mAds > 0 ? `${leadtimeGrowth.toFixed(1)}%` : (basePeriodDemand > 0 ? 'New' : '0%'),
-                'Leadtime': coverageLT,
-                'Total Demand': (totalDemand + penaltyApplied).toFixed(2),
-                'Tồn (Inv)': Number(finalInv.toFixed(2)),
-                'Nhập (Input)': Number(finalInput.toFixed(2)),
-                'Giảm trừ (Penalty)': penaltyApplied > 0 ? `-${penaltyApplied.toFixed(2)}` : '0',
-                'SOQ': soq
+                'sap': data.storeID,
+                'store': storeNameStr,
+                'product': data.bestName,
+                'ads': forecastDay.toFixed(2),
+                'trend': trendExport,
+                'ads_weekday': weekdayAds.toFixed(2),
+                'ads_weekend': weekendAds.toFixed(2),
+                'growth': mAds > 0 ? `${leadtimeGrowth.toFixed(1)}%` : (basePeriodDemand > 0 ? 'New' : '0%'),
+                'leadtime': coverageLT,
+                'demand': (totalDemand + penaltyApplied).toFixed(2),
+                'inventory': Number(finalInv.toFixed(2)),
+                'input': Number(finalInput.toFixed(2)),
+                'penalty': penaltyApplied > 0 ? `-${penaltyApplied.toFixed(2)}` : '0',
+                'soq': soq
             });
 
             let tr = document.createElement('tr');
@@ -1270,6 +1270,8 @@ btnCalculate.addEventListener('click', () => {
             
              // --- LƯU LỊCH SỬ TÍNH TOÁN NGAY LẬP TỨC ĐỂ XEM LẠI Ở TAB "LỊCH SỬ TẢI LÊN" (EXPIRES QUA ĐÊM) ---
              saveToDB('soq_latest_filename', scheduleFileName);
+             saveToDB('soq_latest_html', tbody.innerHTML);
+             saveToDB('soq_latest_array', finalResults);
 
              // --- LƯU LÊN FIREBASE (CLOUD STORAGE) ---
              if (typeof firebase !== 'undefined') {
@@ -1302,8 +1304,25 @@ btnCalculate.addEventListener('click', () => {
 
 // Export to Excel (Bypass Security Block for local file:///)
 btnExport.addEventListener('click', () => {
-    if (finalResults.length === 0) return;
-    const worksheet = XLSX.utils.json_to_sheet(finalResults);
+    // Map lại keys sang Tiếng Việt chuyên nghiệp để xuất Excel
+    const exportData = finalResults.map(item => ({
+        'Mã SAP (Store)': item.sap,
+        'Tên Cửa Hàng': item.store,
+        'Tên Sản Phẩm': item.product,
+        'Trung Bình Bán/Ngày': item.ads,
+        'Xu Hướng Bán (%)': item.trend,
+        'ADS T2-T6': item.ads_weekday,
+        'ADS T7-CN': item.ads_weekend,
+        'Tăng trưởng theo leadtime (%)': item.growth,
+        'Leadtime': item.leadtime,
+        'Total Demand': item.demand,
+        'Tồn (Inv)': item.inventory,
+        'Nhập (Input)': item.input,
+        'Giảm trừ (Penalty)': item.penalty,
+        'SOQ': item.soq
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "SOQ_Results");
 
@@ -1443,22 +1462,22 @@ if (navHistory && navDashboard) {
         tbody.innerHTML = '';
         arr.forEach(item => {
             let tr = document.createElement('tr');
-            // Mapping lại các cột tương ứng (Dựa trên cấu trúc object trong finalResults.push)
+            // Mapping lại các cột từ safe-keys (Firebase) sang giao diện
             tr.innerHTML = `
-                <td>${item['Mã SAP (Store)']}</td>
-                <td>${item['Tên Cửa Hàng']}</td>
-                <td>${item['Tên Sản Phẩm']}</td>
-                <td>${item['Trung Bình Bán/Ngày']}</td>
-                <td><b>${item['Xu Hướng Bán (%)']}</b></td>
-                <td>${item['ADS T2-T6']}</td>
-                <td>${item['ADS T7-CN']}</td>
-                <td><b>${item['Tăng trưởng theo leadtime (%)']}</b></td>
-                <td><b>${item['Leadtime']}</b></td>
-                <td>${item['Total Demand']}</td>
-                <td class="warning">${item['Tồn (Inv)']}</td>
-                <td class="highlight">${item['Nhập (Input)']}</td>
-                <td style="color:${parseFloat(item['Giảm trừ (Penalty)']) < 0 ? 'var(--danger)' : ''}">${item['Giảm trừ (Penalty)']}</td>
-                <td class="highlight">${item['SOQ']}</td>
+                <td>${item.sap || ''}</td>
+                <td>${item.store || ''}</td>
+                <td>${item.product || ''}</td>
+                <td>${item.ads || '0.00'}</td>
+                <td><b>${item.trend || '-'}</b></td>
+                <td>${item.ads_weekday || '0.00'}</td>
+                <td>${item.ads_weekend || '0.00'}</td>
+                <td><b>${item.growth || '-'}</b></td>
+                <td><b>${item.leadtime || ''}</b></td>
+                <td>${item.demand || '0.00'}</td>
+                <td class="warning">${item.inventory || 0}</td>
+                <td class="highlight">${item.input || 0}</td>
+                <td style="color:${parseFloat(item.penalty) < 0 ? 'var(--danger)' : ''}">${item.penalty || '0'}</td>
+                <td class="highlight">${item.soq || 0}</td>
             `;
             tbody.appendChild(tr);
         });
