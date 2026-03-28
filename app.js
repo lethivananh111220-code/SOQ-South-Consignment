@@ -1,3 +1,21 @@
+// --- CẤU HÌNH FIREBASE ---
+// Bạn cần lấy thông tin này từ Firebase Console (https://console.firebase.google.com/)
+const firebaseConfig = {
+    apiKey: "AIzaSyBHG5WoQVon5lgoyZNZ7agIVYJDjyZdRrY",
+    authDomain: "soq-south-consignment.firebaseapp.com",
+    databaseURL: "https://soq-south-consignment-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "soq-south-consignment",
+    storageBucket: "soq-south-consignment.firebasestorage.app",
+    messagingSenderId: "491007756368",
+    appId: "1:491007756368:web:8ea77f51a2a0f3b151a955",
+    measurementId: "G-MSG7VKL5QQ"
+};
+
+// Khởi tạo Firebase nếu thư viện đã tải thành công
+if (typeof firebase !== 'undefined') {
+    firebase.initializeApp(firebaseConfig);
+}
+
 // Danh sách rau ăn lá/RTE (Tỷ lệ hủy > 30%)
 const RTE_PRODUCTS = [
     "Cải hoa hồng baby", "Cải Kale xoăn", "Cải Kale khủng long", "Bông cải xanh baby",
@@ -24,6 +42,7 @@ const btnCalculate = document.getElementById('btn-calculate');
 const btnExport = document.getElementById('btn-export');
 const resultsSection = document.getElementById('results-section');
 const tbody = document.getElementById('soq-tbody');
+const inputUserName = document.getElementById('user-name');
 
 // Helper to normalize column names
 function normalizeKey(key) {
@@ -1250,9 +1269,28 @@ btnCalculate.addEventListener('click', () => {
             btnExport.style.display = 'inline-block';
             
              // --- LƯU LỊCH SỬ TÍNH TOÁN NGAY LẬP TỨC ĐỂ XEM LẠI Ở TAB "LỊCH SỬ TẢI LÊN" (EXPIRES QUA ĐÊM) ---
-             saveToDB('soq_latest_html', tbody.innerHTML);
-             saveToDB('soq_latest_array', finalResults);
              saveToDB('soq_latest_filename', scheduleFileName);
+
+             // --- LƯU LÊN FIREBASE (CLOUD STORAGE) ---
+             if (typeof firebase !== 'undefined') {
+                 let userName = inputUserName ? inputUserName.value.trim() : "Hệ thống";
+                 if (!userName) userName = "Ẩn danh";
+
+                 const now = new Date();
+                 const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+
+                 const payload = {
+                     results: finalResults,
+                     filename: scheduleFileName,
+                     timestamp: now.getTime(),
+                     dateStr: dateStr,
+                     userName: userName
+                 };
+
+                 firebase.database().ref('latest_soq').set(payload)
+                     .then(() => console.log("Đã cập nhật SOQ mới nhất lên Cloud."))
+                     .catch(err => console.error("Lỗi lưu Cloud:", err));
+             }
         }
     } catch (err) {
         console.error("Lỗi tính toán SOQ:", err);
@@ -1361,38 +1399,89 @@ if (navHistory && navDashboard) {
         // Ẩn khu vực tải file
         document.querySelector('.upload-section').style.display = 'none';
         
-        // Kéo lịch sử gần nhất trong bộ nhớ cache
-        let histHtml = await loadFromDB('soq_latest_html');
-        let histArr = await loadFromDB('soq_latest_array');
-        let histName = await loadFromDB('soq_latest_filename');
-
         let tbody = document.getElementById('soq-tbody');
         let titleSpan = document.querySelector('.results-section h2');
         let btnExport = document.getElementById('btn-export');
 
-        if (histHtml && histArr && !histHtml.invalidated) {
-            tbody.innerHTML = histHtml; // Bơm HTML của bảng kết quả vào chính xác DOM
-            finalResults = histArr; // Khôi phục Array để nút "Xuất Excel" vẫn hoạt động mượt
-            if (histName && !histName.invalidated) scheduleFileName = histName;
-            
-            document.getElementById('results-section').style.display = 'block';
-            btnExport.style.display = 'inline-block';
-            
-            // Đóng dấu giao diện là Bản lưu
-            if(!titleSpan.querySelector('span')) {
-                titleSpan.innerHTML = `Kết Quả Dự Báo <span style="font-size: 0.6em; background: rgba(255,152,0,0.2); color: #ff9800; border: 1px solid #ff9800; padding: 4px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">Bản lưu lịch sử mới nhất</span>`;
-            }
+        // Hiện section kết quả trước để người dùng thấy đang load
+        document.getElementById('results-section').style.display = 'block';
+        tbody.innerHTML = `<tr><td colspan="14" style="text-align:center; padding: 2rem;">🔄 Đang tải lịch sử từ Cloud...</td></tr>`;
+
+        // 1. Kiểm tra Firebase trước (Shared History)
+        if (typeof firebase !== 'undefined') {
+            firebase.database().ref('latest_soq').once('value').then(async (snapshot) => {
+                const data = snapshot.val();
+                const todayStr = new Date().toISOString().split('T')[0];
+
+                if (data && data.dateStr === todayStr) {
+                    // Dữ liệu hợp lệ (trong ngày)
+                    finalResults = data.results;
+                    scheduleFileName = data.filename;
+
+                    // Render bảng từ Array
+                    renderTableFromArray(data.results);
+                    btnExport.style.display = 'inline-block';
+
+                    let timeStr = new Date(data.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+                    titleSpan.innerHTML = `Kết Quả Dự Báo <span style="font-size: 0.6em; background: rgba(76, 175, 80, 0.2); color: #4caf50; border: 1px solid #4caf50; padding: 4px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">Shared: ${data.userName} (${timeStr})</span>`;
+                } else {
+                    // Không có dữ liệu Cloud hôm nay -> Fallback về Local Cache của chính mình
+                    loadLocalHistoryFallback(tbody, titleSpan, btnExport);
+                }
+            }).catch(err => {
+                console.error("Lỗi tải Cloud:", err);
+                loadLocalHistoryFallback(tbody, titleSpan, btnExport);
+            });
         } else {
-            // Hiển thị panel rỗng nếu Cache bị xóa do Qua đêm
-            document.getElementById('results-section').style.display = 'block';
-            btnExport.style.display = 'none';
-            tbody.innerHTML = `<tr><td colspan="14" style="text-align:center; padding: 2.5rem; color: #ff9800; font-size: 1.1em;"><i class="fas fa-history" style="font-size: 2em; display: block; margin-bottom: 10px; opacity: 0.5;"></i>Chưa có lịch sử tính toán (Hoặc lịch sử đã tự động dọn dẹp lúc nửa đêm).<br/>Vui lòng Tính SOQ mới ở Bảng tính SOQ!</td></tr>`;
-            
-            if(!titleSpan.querySelector('span')) {
-                titleSpan.innerHTML = `Kết Quả Dự Báo <span style="font-size: 0.6em; background: rgba(255,152,0,0.2); color: #ff9800; border: 1px solid #ff9800; padding: 4px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">Bản lưu lịch sử mới nhất</span>`;
-            }
+            loadLocalHistoryFallback(tbody, titleSpan, btnExport);
         }
     });
+
+    // Hàm bổ trợ Render bảng từ mảng dữ liệu
+    function renderTableFromArray(arr) {
+        let tbody = document.getElementById('soq-tbody');
+        tbody.innerHTML = '';
+        arr.forEach(item => {
+            let tr = document.createElement('tr');
+            // Mapping lại các cột tương ứng (Dựa trên cấu trúc object trong finalResults.push)
+            tr.innerHTML = `
+                <td>${item['Mã SAP (Store)']}</td>
+                <td>${item['Tên Cửa Hàng']}</td>
+                <td>${item['Tên Sản Phẩm']}</td>
+                <td>${item['Trung Bình Bán/Ngày']}</td>
+                <td><b>${item['Xu Hướng Bán (%)']}</b></td>
+                <td>${item['ADS T2-T6']}</td>
+                <td>${item['ADS T7-CN']}</td>
+                <td><b>${item['Tăng trưởng theo leadtime (%)']}</b></td>
+                <td><b>${item['Leadtime']}</b></td>
+                <td>${item['Total Demand']}</td>
+                <td class="warning">${item['Tồn (Inv)']}</td>
+                <td class="highlight">${item['Nhập (Input)']}</td>
+                <td style="color:${parseFloat(item['Giảm trừ (Penalty)']) < 0 ? 'var(--danger)' : ''}">${item['Giảm trừ (Penalty)']}</td>
+                <td class="highlight">${item['SOQ']}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Hàm bổ trợ Load Local
+    async function loadLocalHistoryFallback(tbody, titleSpan, btnExport) {
+        let histHtml = await loadFromDB('soq_latest_html');
+        let histArr = await loadFromDB('soq_latest_array');
+        let histName = await loadFromDB('soq_latest_filename');
+
+        if (histHtml && histArr && !histHtml.invalidated) {
+            tbody.innerHTML = histHtml;
+            finalResults = histArr;
+            if (histName && !histName.invalidated) scheduleFileName = histName;
+            btnExport.style.display = 'inline-block';
+            titleSpan.innerHTML = `Kết Quả Dự Báo <span style="font-size: 0.6em; background: rgba(255,152,0,0.2); color: #ff9800; border: 1px solid #ff9800; padding: 4px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">Local: Bản lưu máy bạn</span>`;
+        } else {
+            btnExport.style.display = 'none';
+            tbody.innerHTML = `<tr><td colspan="14" style="text-align:center; padding: 2.5rem; color: #ff9800; font-size: 1.1em;"><i class="fas fa-history" style="font-size: 2em; display: block; margin-bottom: 10px; opacity: 0.5;"></i>Không có lịch sử chia sẻ hoặc lịch sử máy bạn đã hết hạn trong ngày hôm nay.</td></tr>`;
+            titleSpan.innerHTML = `Kết Quả Dự Báo`;
+        }
+    }
 
     navDashboard.addEventListener('click', (e) => {
         e.preventDefault();

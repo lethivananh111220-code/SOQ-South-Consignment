@@ -10,6 +10,10 @@
     <link rel="stylesheet" href="style.css">
     <!-- Load XLSX library for Excel parsing and exporting -->
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    
+    <!-- Firebase SDK (v8 Compatibility) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
     <div class="app-container">
@@ -95,6 +99,13 @@
                         </select>
                         <small style="display: block; margin-top: 8px; color: var(--text-muted);">Web tự quy đổi Ngày Sang Thứ (hoặc Ngày) để khớp với Header ma trận Lịch.</small>
                     </div>
+
+                    <!-- Ô nhập tên người thực hiện -->
+                    <div style="margin-bottom: 20px; text-align: center;">
+                        <input type="text" id="user-name" placeholder="👤 Nhập tên người thực hiện..." 
+                               style="padding: 10px 15px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white; width: 250px; outline: none; text-align: center;">
+                    </div>
+
                     <button class="btn-primary" id="btn-calculate" disabled>Tiến hành tính SOQ</button>
                     <button class="btn-secondary" id="btn-export" style="display: none;">Xuất File Excel</button>
                 </div>
