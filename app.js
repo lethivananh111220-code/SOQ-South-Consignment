@@ -1470,16 +1470,54 @@ if (navHistory && navDashboard) {
         tbody.innerHTML = '';
         arr.forEach(item => {
             let tr = document.createElement('tr');
+
+            // --- Bổ sung xử lý màu sắc và biểu tượng như bản SOQ gốc ---
+            
+            // 1. Phân tích Xu hướng (Trend)
+            let trendVal = String(item.trend || '-').trim();
+            // Xử lý cả trường hợp số dạng "4.2%" hoặc "+4.2%" hoặc "▲ 4.2%"
+            let trendNum = parseFloat(trendVal.replace(/[▲▼+%\s]/g, ''));
+            let trendHtml = `<span>${trendVal}</span>`;
+            
+            if (trendVal.toLowerCase().includes('new') || trendVal.toLowerCase().includes('mới')) {
+                trendHtml = `<span style="color: var(--success)">▲ Mới bán</span>`;
+            } else if (!isNaN(trendNum)) {
+                if (Math.abs(trendNum) < 1e-6) {
+                    trendHtml = `<span>0.0%</span>`;
+                } else if (trendNum > 0 || trendVal.includes('+') || trendVal.includes('▲')) {
+                    trendHtml = `<span style="color: var(--success)">▲ ${Math.abs(trendNum).toFixed(1)}%</span>`;
+                } else if (trendNum < 0 || trendVal.includes('-') || trendVal.includes('▼')) {
+                    trendHtml = `<span style="color: var(--danger)">▼ ${Math.abs(trendNum).toFixed(1)}%</span>`;
+                }
+            }
+
+            // 2. Phân tích Tăng trưởng (Growth)
+            let growthVal = String(item.growth || '-').trim();
+            let growthNum = parseFloat(growthVal.replace(/[▲▼+%\s]/g, ''));
+            let growthHtml = `<span>${growthVal}</span>`;
+            
+            if (growthVal.toLowerCase().includes('new') || growthVal.toLowerCase().includes('mới')) {
+                growthHtml = `<span style="color: var(--success)">${growthVal}</span>`;
+            } else if (!isNaN(growthNum)) {
+                if (growthNum > 1e-6) { // Positive
+                    growthHtml = `<span style="color: var(--success)">+${growthNum.toFixed(1)}%</span>`;
+                } else if (growthNum < -1e-6) { // Negative
+                    growthHtml = `<span style="color: var(--danger)">-${Math.abs(growthNum).toFixed(1)}%</span>`;
+                } else {
+                    growthHtml = `<span>0.0%</span>`;
+                }
+            }
+
             // Mapping lại các cột từ safe-keys (Firebase) sang giao diện
             tr.innerHTML = `
                 <td>${item.sap || ''}</td>
                 <td>${item.store || ''}</td>
                 <td>${item.product || ''}</td>
                 <td>${item.ads || '0.00'}</td>
-                <td><b>${item.trend || '-'}</b></td>
+                <td><b>${trendHtml}</b></td>
                 <td title="${item.tip_weekday || ''}">${item.ads_weekday || '0.00'}</td>
                 <td title="${item.tip_weekend || ''}">${item.ads_weekend || '0.00'}</td>
-                <td><b>${item.growth || '-'}</b></td>
+                <td><b>${growthHtml}</b></td>
                 <td><b><span title="${item.tip_leadtime || ''}">${item.leadtime || ''}</span></b></td>
                 <td title="${item.tip_demand || ''}">${item.demand || '0.00'}</td>
                 <td class="warning" title="${item.tip_inventory || ''}">${item.inventory || 0}</td>
@@ -1493,12 +1531,11 @@ if (navHistory && navDashboard) {
 
     // Hàm bổ trợ Load Local
     async function loadLocalHistoryFallback(tbody, titleSpan, btnExport) {
-        let histHtml = await loadFromDB('soq_latest_html');
-        let histArr = await loadFromDB('soq_latest_array');
+        let histArr = await loadFromDB('soq_latest_array'); // Không dùng histHtml từ Cache vì có thể bị stale style
         let histName = await loadFromDB('soq_latest_filename');
 
-        if (histHtml && histArr && !histHtml.invalidated) {
-            tbody.innerHTML = histHtml;
+        if (histArr && !histArr.invalidated) {
+            renderTableFromArray(histArr); // Render lại từ mảng để áp dụng Style mới nhất
             finalResults = histArr;
             if (histName && !histName.invalidated) scheduleFileName = histName;
             btnExport.style.display = 'inline-block';
