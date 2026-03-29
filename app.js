@@ -1204,6 +1204,9 @@ btnCalculate.addEventListener('click', () => {
 
             let storeNameStr = storeNamesMap.get(data.storeID) || data.storeOrig;
 
+            let totalDemandRaw = totalDemand + penaltyApplied;
+            let breakdownTip = `Công thức: Demand (sau Trend) + SafetyStock. \n- Nhu cầu gốc (Coverage): ${coverageDemandBase.toFixed(2)} \n- Hệ số xu hướng: x${trendFactor.toFixed(3)}\n=> Demand (sau Trend): ${(coverageDemandBase * trendFactor).toFixed(2)}\n- SafetyStock: +${safetyStock.toFixed(2)} \n- Penalty (Giảm trừ): -${penaltyApplied.toFixed(2)}`;
+
             finalResults.push({
                 'sap': data.storeID,
                 'store': storeNameStr,
@@ -1218,21 +1221,26 @@ btnCalculate.addEventListener('click', () => {
                 'inventory': Number(finalInv.toFixed(2)),
                 'input': Number(finalInput.toFixed(2)),
                 'penalty': penaltyApplied > 0 ? `-${penaltyApplied.toFixed(2)}` : '0',
-                'soq': soq
+                'soq': soq,
+                // Tooltips cho phần lịch sử
+                'tip_weekday': `Tổng bán thực tế: ${weekdayQty.toFixed(2)} / ${weekdayDaysCount} ngày T2-T6 của Store`,
+                'tip_weekend': `Tổng bán thực tế: ${weekendQty.toFixed(2)} / ${weekendDaysCount} ngày T7-CN của Store`,
+                'tip_leadtime': `Coverage: ${coverageLT} ngày. (Chỉ tính lượng bán ra trong ${coverageLT} ngày giao hàng, không tính phần thiếu hụt trong ${leadTimeArrival.toFixed(1)} ngày chờ)`,
+                'tip_demand': breakdownTip,
+                'tip_inventory': invTooltip,
+                'tip_input': inputTooltip,
+                'tip_penalty': disposalTooltip
             });
 
             let tr = document.createElement('tr');
-            let totalDemandRaw = totalDemand + penaltyApplied;
-            let breakdownTip = `Công thức: Demand (sau Trend) + SafetyStock. \n- Nhu cầu gốc (Coverage): ${coverageDemandBase.toFixed(2)} \n- Hệ số xu hướng: x${trendFactor.toFixed(3)}\n=> Demand (sau Trend): ${(coverageDemandBase * trendFactor).toFixed(2)}\n- SafetyStock: +${safetyStock.toFixed(2)} \n- Penalty (Giảm trừ): -${penaltyApplied.toFixed(2)}`;
-
             tr.innerHTML = `
             <td>${data.storeID}</td>
             <td>${storeNameStr}</td>
             <td>${data.bestName}</td>
             <td>${forecastDay.toFixed(2)}</td>
             <td><b>${trendHtml}</b></td>
-                        <td title="Tổng bán thực tế: ${weekdayQty.toFixed(2)} / ${weekdayDaysCount} ngày T2-T6 của Store">${weekdayAds.toFixed(2)}</td>
-                        <td title="Tổng bán thực tế: ${weekendQty.toFixed(2)} / ${weekendDaysCount} ngày T7-CN của Store">${weekendAds.toFixed(2)}</td>
+            <td title="Tổng bán thực tế: ${weekdayQty.toFixed(2)} / ${weekdayDaysCount} ngày T2-T6 của Store">${weekdayAds.toFixed(2)}</td>
+            <td title="Tổng bán thực tế: ${weekendQty.toFixed(2)} / ${weekendDaysCount} ngày T7-CN của Store">${weekendAds.toFixed(2)}</td>
             <td><b>${growthHtml}</b></td>
             <td><span title="Coverage: ${coverageLT} ngày. (Chỉ tính lượng bán ra trong ${coverageLT} ngày giao hàng, không tính phần thiếu hụt trong ${leadTimeArrival.toFixed(1)} ngày chờ)">${coverageLT}</span></td>
             <td title="${breakdownTip}">${totalDemandRaw.toFixed(2)}</td>
@@ -1469,14 +1477,14 @@ if (navHistory && navDashboard) {
                 <td>${item.product || ''}</td>
                 <td>${item.ads || '0.00'}</td>
                 <td><b>${item.trend || '-'}</b></td>
-                <td>${item.ads_weekday || '0.00'}</td>
-                <td>${item.ads_weekend || '0.00'}</td>
+                <td title="${item.tip_weekday || ''}">${item.ads_weekday || '0.00'}</td>
+                <td title="${item.tip_weekend || ''}">${item.ads_weekend || '0.00'}</td>
                 <td><b>${item.growth || '-'}</b></td>
-                <td><b>${item.leadtime || ''}</b></td>
-                <td>${item.demand || '0.00'}</td>
-                <td class="warning">${item.inventory || 0}</td>
-                <td class="highlight">${item.input || 0}</td>
-                <td style="color:${parseFloat(item.penalty) < 0 ? 'var(--danger)' : ''}">${item.penalty || '0'}</td>
+                <td><b><span title="${item.tip_leadtime || ''}">${item.leadtime || ''}</span></b></td>
+                <td title="${item.tip_demand || ''}">${item.demand || '0.00'}</td>
+                <td class="warning" title="${item.tip_inventory || ''}">${item.inventory || 0}</td>
+                <td class="highlight" title="${item.tip_input || ''}">${item.input || 0}</td>
+                <td style="color:${parseFloat(item.penalty) < 0 ? 'var(--danger)' : ''}" title="${item.tip_penalty || ''}">${item.penalty || '0'}</td>
                 <td class="highlight">${item.soq || 0}</td>
             `;
             tbody.appendChild(tr);

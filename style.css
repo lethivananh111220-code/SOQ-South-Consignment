@@ -359,5 +359,47 @@ button {
     .table-container {
         -webkit-overflow-scrolling: touch;
         border-radius: 8px;
+        margin-top: 10px;
+    }
+
+    /* Tối ưu hóa bảng cho mobile */
+    .data-table th, .data-table td {
+        padding: 0.6rem 0.4rem;
+        font-size: 0.75rem;
+        white-space: nowrap;
+    }
+
+    /* CSS Cố định 3 cột đầu tiên (Mã SAP, Cửa hàng, Sản phẩm) */
+    .data-table th:nth-child(1), .data-table td:nth-child(1) { left: 0; min-width: 50px; max-width: 50px; }
+    .data-table th:nth-child(2), .data-table td:nth-child(2) { left: 50px; min-width: 80px; max-width: 80px; overflow: hidden; text-overflow: ellipsis; }
+    .data-table th:nth-child(3), .data-table td:nth-child(3) { left: 130px; min-width: 100px; max-width: 100px; overflow: hidden; text-overflow: ellipsis; }
+
+    .data-table th:nth-child(1), .data-table th:nth-child(2), .data-table th:nth-child(3),
+    .data-table td:nth-child(1), .data-table td:nth-child(2), .data-table td:nth-child(3) {
+        position: sticky;
+        border-right: 1px solid var(--border);
+    }
+
+    /* Giữ màu sắc đồng bộ hoàn toàn với bản SOQ gốc */
+    .data-table th:nth-child(1), .data-table th:nth-child(2), .data-table th:nth-child(3) {
+        background-color: #1a2235 !important;
+        z-index: 30 !important;
+    }
+
+    .data-table td:nth-child(1), .data-table td:nth-child(2), .data-table td:nth-child(3) {
+        background-color: var(--bg-card) !important;
+        z-index: 15;
+    }
+
+    /* Đồng bộ hiệu ứng hover cho các cột sticky */
+    .data-table tr:hover td:nth-child(1),
+    .data-table tr:hover td:nth-child(2),
+    .data-table tr:hover td:nth-child(3) {
+        background-color: #243046 !important;
+    }
+
+    /* Đảm bảo các hàng tiêu đề luôn nằm trên cùng */
+    .data-table th {
+        z-index: 25 !important;
     }
 }
