@@ -44,10 +44,18 @@ const resultsSection = document.getElementById('results-section');
 const tbody = document.getElementById('soq-tbody');
 const inputUserName = document.getElementById('user-name');
 
+function removeAccents(str) {
+    if (!str) return '';
+    return str.normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .replace(/đ/g, 'd').replace(/Đ/g, 'D');
+}
+
 // Helper to normalize column names
 function normalizeKey(key) {
     if (!key) return '';
-    return key.toString().toLowerCase().replace(/[^a-z0-9\/\-]/g, '');
+    let s = removeAccents(key.toString().toLowerCase());
+    return s.replace(/[^a-z0-9]/g, '');
 }
 
 // Hàm trích xuất tự động bỏ qua các tiêu đề báo cáo rác ở file hệ thống (Excel report info)
@@ -68,7 +76,28 @@ function extractJsonDataCleanly(worksheet) {
     }
 
     const headersRaw = rawArr[headerIdx] || [];
-    const headers = headersRaw.map(h => normalizeKey(h));
+    const headersPrefix = headerIdx > 0 ? (rawArr[headerIdx - 1] || []) : [];
+    
+    let headers = headersRaw.map((h, j) => {
+        let prefix = headersPrefix[j] ? String(headersPrefix[j]).trim() + '_' : '';
+        return normalizeKey(prefix + h);
+    });
+    
+    // FALLBACK: Nếu headers toàn là số (Excel Serial Dates) -> Có thể đây là file matrix không có label.
+    let numericHeadersCount = headersRaw.filter(h => typeof h === 'number' && h > 40000).length;
+    // Tăng cường kiểm tra cả headersPrefix nếu có
+    if (headersPrefix.length > 0) numericHeadersCount += headersPrefix.filter(h => typeof h === 'number' && h > 40000).length;
+
+    if (numericHeadersCount > 5) {
+        // Đây là dạng file Lịch Matrix. Ép các cột cố định (0: Type, 1: SAP, 4: Name)
+        // Lưu ý: Nếu có prefix, headers[1] có thể là "v_sap". Ta rà soát index.
+        headers[0] = 'type';
+        headers[1] = 'sap';
+        headers[2] = 'tier';
+        headers[3] = 'function';
+        headers[4] = 'storename';
+    }
+
     const json = [];
 
     for (let i = headerIdx + 1; i < rawArr.length; i++) {
@@ -82,8 +111,9 @@ function extractJsonDataCleanly(worksheet) {
         let hasData = false;
         for (let j = 0; j < headers.length; j++) {
             if (row[j] !== undefined && row[j] !== null && String(row[j]).trim() !== '') {
-                obj[headers[j]] = row[j];
-                obj[headersRaw[j]] = row[j]; // Giữ nguyên key gốc để fallback
+                obj[headers[j]] = row[j]; // Composite (oda_tensanphamwm)
+                obj[normalizeKey(headersRaw[j])] = row[j]; // Simple (tensanphamwm)
+                obj[headersRaw[j]] = row[j]; // Raw (Tên sản phẩm WM)
                 hasData = true;
             }
         }
@@ -187,16 +217,27 @@ function handleFileUpload(event, type) {
         }
 
         try {
-            const json = extractJsonDataCleanly(worksheet);
-            datasets[type] = json;
+            if (type === 'monthly') {
+                let allJson = [];
+                workbook.SheetNames.forEach(name => {
+                    const ws = workbook.Sheets[name];
+                    const json = extractJsonDataCleanly(ws);
+                    if (json && json.length > 0) allJson = allJson.concat(json);
+                });
+                datasets[type] = allJson;
+            } else {
+                const json = extractJsonDataCleanly(worksheet);
+                datasets[type] = json;
+            }
+
             if (type === 'monthly' || type === 'weekly') {
-                saveToDB(type, json);
-                statusEl.textContent = `Đã tải & lưu trữ: ${file.name} (${json.length} dòng)`;
+                saveToDB(type, datasets[type]);
+                statusEl.textContent = `Đã tải & lưu trữ: ${file.name} (${datasets[type].length} dòng)`;
             } else {
                 if (type === 'schedule') {
                     scheduleFileName = file.name.replace(/\.[^/.]+$/, "");
                 }
-                statusEl.textContent = `Đã tải: ${file.name} (${json.length} dòng)`;
+                statusEl.textContent = `Đã tải: ${file.name} (${datasets[type].length} dòng)`;
             }
             statusEl.classList.add('success');
             checkReady();
@@ -279,8 +320,12 @@ async function loadFromDB(key) {
 
             if (key === 'monthly') {
                 if (dDate.getMonth() !== nDate.getMonth() || dDate.getFullYear() !== nDate.getFullYear()) {
-                    await deleteFromDB(key);
-                    return { invalidated: true, reason: "sang tháng mới" };
+                    // Nếu là file tháng, chỉ xóa nếu quá 2 tháng (để user dùng được tháng trước + tháng này)
+                    let monthDiff = (nDate.getFullYear() - dDate.getFullYear()) * 12 + (nDate.getMonth() - dDate.getMonth());
+                    if (monthDiff > 2) {
+                        await deleteFromDB(key);
+                        return { invalidated: true, reason: "dữ liệu quá cũ (>2 tháng)" };
+                    }
                 }
             } else if (key === 'weekly') {
                 // Hạn sử dụng của Doanh số tuần: Từ ngày tải lên (dDate) kéo dài đến Thứ 3 của tuần kế tiếp
@@ -511,12 +556,13 @@ btnCalculate.addEventListener('click', () => {
         // --- 2. Schedule Filter & Store Names ---
         const validSAPs = new Set();
         const storeNamesMap = new Map();
+        const storeAliasesMap = new Map(); // ID -> Set of normalized names/nicknames
         const scheduleLeadtimeMap = new Map();
         const storeTierMap = new Map();
 
         if (datasets.schedule && datasets.schedule.length > 0) {
             datasets.schedule.forEach(row => {
-                let store = row['sap'] || row['storekey'] || row['storecode'] || row['makho'] || row['mach'] || row['mãkháchhàng'] || row['mãcửahàng'];
+                let store = row['sap'] || row['storekey'] || row['storecode'] || row['makho'] || row['mach'] || row['mãkháchhàng'] || row['mãcửahàng'] || row['nickname'] || row['storename'] || row['store'];
                 if (!store) return;
 
                 let storeID = extractSAP(store);
@@ -528,14 +574,8 @@ btnCalculate.addEventListener('click', () => {
                 if (targetDateStr !== "") {
                     let hasDelivery = false;
                     let isTargetWeekday = getWeekdayIdx(targetDateStr) !== -1;
-                    let currentTargetNum = isTargetWeekday ? getWeekdayIdx(targetDateStr) : parseInt((targetDateStr.match(/^(\d{1,2})/) || [])[1] || 0);
-
-                    let impliedWeekdayIdx = -1;
-                    if (!isTargetWeekday && currentTargetNum > 0) {
-                        let d = new Date();
-                        d.setDate(currentTargetNum);
-                        impliedWeekdayIdx = d.getDay(); // 0(CN) -> 6(T7)
-                    }
+                    let impliedWeekdayIdx = new Date(targetTimestamp).getDay();
+                    let currentTargetNum = isTargetWeekday ? getWeekdayIdx(targetDateStr) : new Date(targetTimestamp).getDate();
 
                     let possibleNextWeekdayIdx = [];
                     let possibleNextDigitDays = [];
@@ -549,7 +589,7 @@ btnCalculate.addEventListener('click', () => {
 
                         let headerWeekdayIdx = getWeekdayIdx(k);
 
-                        // Nếu Header file Lịch là THỦ (VD: Friday, T2)
+                        // Nếu Header file Lịch là THỨ (VD: Friday, T2)
                         if (headerWeekdayIdx !== -1) {
                             if (isTargetWeekday) {
                                 match = (headerWeekdayIdx === currentTargetNum);
@@ -557,8 +597,32 @@ btnCalculate.addEventListener('click', () => {
                                 match = (headerWeekdayIdx === impliedWeekdayIdx);
                             }
                         } else {
-                            // Nếu Header file Lịch là SỐ NGÀY (VD: 20, 20/03)
-                            match = (k === targetDateStr || k.startsWith(targetDateStr + '/') || k.startsWith(targetDateStr + '-'));
+                            // Xử lý Header phức hợp (vd: 01-Thg4_Wednesday) hoặc Header đơn thuần
+                            let kClean = k.toLowerCase();
+                            let targetPadded = targetDateStr.padStart(2, '0'); // "1" -> "01"
+                            
+                            // 1. So khớp Số ngày trực tiếp: "01", "1", "1-", "01-"
+                            let dateMatch = kClean.startsWith(targetDateStr + '-') || kClean.startsWith(targetPadded + '-') || 
+                                           kClean.includes('_' + targetDateStr + '-') || kClean.includes('_' + targetPadded + '-');
+                            
+                            // 2. So khớp Serial Date nếu có trong Key
+                            let serialMatch = false;
+                            let serialInKey = kClean.match(/(\d{5})/);
+                            if (serialInKey) {
+                                let headerTs = parseDateStrToTime(Number(serialInKey[1]));
+                                if (targetTimestamp > 0 && headerTs > 0) {
+                                    let d1 = new Date(targetTimestamp);
+                                    let d2 = new Date(headerTs);
+                                    serialMatch = (d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate());
+                                }
+                            }
+                            
+                            match = dateMatch || serialMatch;
+
+                            // Fallback nếu headers quá đơn giản (chỉ "1", "2")
+                            if (!match) {
+                                match = (k === targetDateStr || k.startsWith(targetDateStr + '/') || k.startsWith(targetDateStr + '-'));
+                            }
                         }
 
                         let v = String(val).trim().toLowerCase().replace(/\s+/g, '');
@@ -623,20 +687,30 @@ btnCalculate.addEventListener('click', () => {
                 }
 
                 // Mặc định: Chấp nhận TẤT CẢ các mã cửa hàng miễn là có tên trong file Lịch Giao Hàng
-                validSAPs.add(storeID);
+                if (storeID) {
+                    validSAPs.add(storeID);
 
-                let sName = row['tencuahang'] || row['tncahng'] || row['storename'] || row['store'];
-                if (sName) storeNamesMap.set(storeID, String(sName).trim());
+                    let sName = row['tencuahang'] || row['tncahng'] || row['storename'] || row['store'] || row['nickname'] || ''; 
+                    let nickname = row['nickname'] || '';
 
-                // LƯU CỘT TIER
-                let tierVal = String(row['tier'] || row['Tier'] || row['cấpđộ'] || row['phânloại'] || '').trim().toUpperCase();
-                if (tierVal && tierVal !== 'UNDEFINED') storeTierMap.set(storeID, tierVal);
+                    if (sName) storeNamesMap.set(storeID, String(sName).trim());
 
-                if (dynamicLT > 0) {
-                    scheduleLeadtimeMap.set(storeID, dynamicLT); // Gắn chặt Leadtime từ matrix lịch
-                } else {
-                    let lt = Number(row['leadtime'] || row['Leadtime'] || row['chu kỳ'] || row['chukỳ'] || 0);
-                    if (lt > 0) scheduleLeadtimeMap.set(storeID, lt);
+                    // Đăng ký Alias
+                    if (!storeAliasesMap.has(storeID)) storeAliasesMap.set(storeID, new Set());
+                    if (sName) storeAliasesMap.get(storeID).add(normalizeKey(sName));
+                    if (nickname) storeAliasesMap.get(storeID).add(normalizeKey(nickname));
+                    storeAliasesMap.get(storeID).add(normalizeKey(storeID));
+
+                    // LƯU CỘT TIER
+                    let tierVal = String(row['tier'] || row['Tier'] || row['cấpđộ'] || row['phânloại'] || '').trim().toUpperCase();
+                    if (tierVal && tierVal !== 'UNDEFINED') storeTierMap.set(storeID, tierVal);
+
+                    if (dynamicLT > 0) {
+                        scheduleLeadtimeMap.set(storeID, dynamicLT); 
+                    } else {
+                        let lt = Number(row['leadtime'] || row['Leadtime'] || row['chu kỳ'] || row['chukỳ'] || 0);
+                        if (lt > 0) scheduleLeadtimeMap.set(storeID, lt);
+                    }
                 }
             });
         }
@@ -670,7 +744,7 @@ btnCalculate.addEventListener('click', () => {
 
         if (datasets.inventory && datasets.inventory.length > 0) {
             datasets.inventory.forEach(row => {
-                let store = row['sap'] || row['storecode'];
+                let store = row['sap'] || row['storecode'] || row['nickname'] || row['storename'] || row['store'] || row['mach'] || row['article'];
                 if (!store) return;
                 let storeID = extractSAP(store);
                 let rawDate = row['date'] || row['Date'] || row['ngay'] || row['ngày'] || 0;
@@ -717,8 +791,8 @@ btnCalculate.addEventListener('click', () => {
         const inventoryMap = new Map();
         if (datasets.inventory && datasets.inventory.length > 0) {
             datasets.inventory.forEach(row => {
-                let store = row['sap'] || row['storecode'];
-                let prod = row['productname'] || row['listsnphm'] || row['tnsnphm'];
+                let store = row['sap'] || row['storecode'] || row['nickname'] || row['storename'] || row['store'] || row['mach'];
+                let prod = row['productname'] || row['listsnphm'] || row['tnsnphm'] || row['tensanphamwm'] || row['articlename'] || row['article'] || row['tensanpham'] || row['productname'];
                 if (!store || !prod) return;
 
                 let storeID = extractSAP(store);
@@ -739,8 +813,8 @@ btnCalculate.addEventListener('click', () => {
                 let key = `${storeID}_${prodStd.toLowerCase()}`;
 
                 // ... (Quy đổi kg)
-                let inv = Number(String(row['inventory'] || row['inventoryamount'] || row['Inventory Amount'] || row['inventoryquantity'] || row['Tồn kho'] || '0').replace(/,/g, ''));
-                let disp = Number(String(row['disposal'] || row['disposalamount'] || row['Disposal Amount'] || row['disposalquantity'] || row['Hủy'] || '0').replace(/,/g, ''));
+                let inv = Number(String(row['tonkho'] || row['stock'] || row['ton'] || row['inventory'] || row['inventoryquantity'] || row['inventoryamount'] || row['stkinv'] || '0').replace(/,/g, ''));
+                let disp = Number(String(row['huy'] || row['disposal'] || row['scrap'] || row['tonhuy'] || row['disposalquantity'] || row['disposalamount'] || '0').replace(/,/g, ''));
 
                 if (prod && String(prod).toLowerCase().includes('retail kg')) {
                     inv = inv / 1000;
@@ -777,9 +851,9 @@ btnCalculate.addEventListener('click', () => {
 
         if (datasets.input && datasets.input.length > 0) {
             datasets.input.forEach(row => {
-                let store = row['nickname'] || row['sap'];
-                let prod = row['productnameprimarylanguage'] || row['productname'] || row['product'];
-                let status = String(row['orderstatus'] || row['status'] || '').toLowerCase();
+                let store = row['nickname'] || row['sap'] || row['storecode'] || row['storename'] || row['store'];
+                let prod = row['productnameprimarylanguage'] || row['productname'] || row['product'] || row['tensanphamwm'] || row['tensanpham'] || row['articlename'] || row['article'];
+                let status = String(row['orderstatus'] || row['status'] || row['trangthai'] || '').toLowerCase();
 
                 if (!store || !prod) return;
 
@@ -842,27 +916,38 @@ btnCalculate.addEventListener('click', () => {
         const storeMonthlyDays = new Map(); // All days
         const storeGroupDays = new Map();  // storeID -> { weekdays: Set, weekends: Set }
 
-        if (datasets.monthly && datasets.monthly.length > 0) {
-            datasets.monthly.forEach(row => {
-                let st = row['sap'] || row['storecode'];
-                let pr = row['tnsnphmwm'] || row['tnsnphm'] || row['articlename'] || row['article'] || row['tensanpham'] || row['productname'];
-                let qty = Number(String(row['posquantity'] || row['sum'] || '0').replace(/,/g, ''));
+        const processMonthlyData = (dataArr) => {
+            if (!dataArr || dataArr.length === 0) return;
+            dataArr.forEach(row => {
+                let st = row['sap'] || row['storecode'] || row['sapcode'] || row['store'] || row['nickname'] || row['storename'] || row['tencuahang'];
+                let pr = row['tnsnphmwm'] || row['tensanphamwm'] || row['tnsnphm'] || row['articlename'] || row['article'] || row['tensanpham'] || row['productname'];
+                let qty = Number(String(row['posquantity'] || row['quantity'] || row['soluong'] || row['sum'] || '0').replace(/,/g, ''));
                 if (pr && String(pr).toLowerCase().includes('retail kg')) qty /= 1000;
 
                 let storeID = extractSAP(st);
                 let rawDate = String(row['calendarday'] || row['date'] || row['ngay'] || '').trim();
 
+                // Đăng ký Tên/Nickname từ file Doanh số (ODA)
+                if (storeID) {
+                    let sName = row['storename'] || row['store'] || row['têncửahàng'] || '';
+                    let nickname = row['nickname'] || '';
+                    if (!storeAliasesMap.has(storeID)) storeAliasesMap.set(storeID, new Set());
+                    if (sName) storeAliasesMap.get(storeID).add(normalizeKey(sName));
+                    if (nickname) storeAliasesMap.get(storeID).add(normalizeKey(nickname));
+                    storeAliasesMap.get(storeID).add(normalizeKey(storeID));
+                    
+                    if (sName && !storeNamesMap.has(storeID)) storeNamesMap.set(storeID, sName);
+                }
+
                 if (rawDate && storeID) {
                     if (!storeMonthlyDays.has(storeID)) storeMonthlyDays.set(storeID, new Set());
                     storeMonthlyDays.get(storeID).add(rawDate);
 
-                    // TRACK WEEKDAY vs WEEKEND
                     if (!storeGroupDays.has(storeID)) {
                         storeGroupDays.set(storeID, { weekdays: new Set(), weekends: new Set() });
                     }
                     let cDate = parseDateStrToTime(rawDate);
                     let dayOfWeek = new Date(cDate).getDay();
-                    // Weekday: 1,2,3,4,5 (T2-T6) | Weekend: 6,0 (T7-CN)
                     let isWknd = (dayOfWeek === 6 || dayOfWeek === 0);
                     if (isWknd) storeGroupDays.get(storeID).weekends.add(rawDate);
                     else storeGroupDays.get(storeID).weekdays.add(rawDate);
@@ -892,53 +977,113 @@ btnCalculate.addEventListener('click', () => {
                     }
                 }
             });
-        }
+        };
+
+        processMonthlyData(datasets.monthly);
+        // TẠO BẢN ĐỒ NGƯỢC: Tên Store (Chuẩn hóa) / Nickname -> Mã SAP để xử lý file Matrix Weekly
+        const reverseStoreNamesMap = new Map();
+        storeAliasesMap.forEach((aliases, id) => {
+            aliases.forEach(alias => {
+                reverseStoreNamesMap.set(alias, id);
+            });
+        });
+        // Backfill từ storeNamesMap nếu còn sót
+        storeNamesMap.forEach((name, id) => {
+            reverseStoreNamesMap.set(normalizeKey(name), id);
+            reverseStoreNamesMap.set(id, id);
+        });
+
         const weeklySales = new Map();
         const storeWeeklyDays = new Map();
         const storeWeeklyGroupDays = new Map();
         if (datasets.weekly && datasets.weekly.length > 0) {
             datasets.weekly.forEach(row => {
-                let st = row['sap'] || row['storecode'];
-                let pr = row['tnsnphmwm'] || row['tnsnphm'] || row['articlename'] || row['article'] || row['tensanpham'] || row['productname'];
-                if (!st || !pr) return;
-
-                let storeID = extractSAP(st);
-                let qty = Number(String(row['posquantity'] || row['sum'] || '0').replace(/,/g, ''));
-                if (pr && String(pr).toLowerCase().includes('retail kg')) qty /= 1000;
-
-                let rawDate = String(row['calendarday'] || row['date'] || row['ngay'] || '').trim();
-                let isWknd = false;
-
-                if (rawDate && storeID) {
-                    if (!storeWeeklyDays.has(storeID)) storeWeeklyDays.set(storeID, new Set());
-                    storeWeeklyDays.get(storeID).add(rawDate);
-
-                    if (!storeWeeklyGroupDays.has(storeID)) {
-                        storeWeeklyGroupDays.set(storeID, { weekdays: new Set(), weekends: new Set() });
-                    }
-                    let cDate = parseDateStrToTime(rawDate);
-                    let dayOfWeek = new Date(cDate).getDay();
-                    isWknd = (dayOfWeek === 6 || dayOfWeek === 0);
-                    if (isWknd) storeWeeklyGroupDays.get(storeID).weekends.add(rawDate);
-                    else storeWeeklyGroupDays.get(storeID).weekdays.add(rawDate);
-                }
-
-                if (isNaN(qty)) return;
-
+                // Kiểm tra xem đây là file TRANSACTION (phẳng) hay MATRIX (ngang)
+                let st = row['sap'] || row['storecode'] || row['nickname'] || row['storename'] || row['store'] || row['mach'] || row['tencuahang'];
+                let pr = row['tnsnphmwm'] || row['tensanphamwm'] || row['tnsnphm'] || row['articlename'] || row['article'] || row['tensanpham'] || row['productname'];
+                
+                if (!pr) return;
                 let prodStd = normalizeProductName(pr);
-                if (!prodStd) {
-                    unmappedProducts.add(String(pr).trim());
-                    return;
-                }
-                let key = `${storeID}_${prodStd.toLowerCase()}`;
+                if (!prodStd) return;
 
-                if (!weeklySales.has(key)) {
-                    weeklySales.set(key, { totalQty: qty, weekdayQty: isWknd ? 0 : qty, weekendQty: isWknd ? qty : 0 });
+                if (st) {
+                    // --- DẠNG FILE PHẲNG (TRANSACTION) ---
+                    let storeID = extractSAP(st);
+                    let qty = Number(String(row['posquantity'] || row['sum'] || '0').replace(/,/g, ''));
+                    if (pr && String(pr).toLowerCase().includes('retail kg')) qty /= 1000;
+
+                    let rawDate = String(row['calendarday'] || row['date'] || row['ngay'] || '').trim();
+                    let isWknd = false;
+
+                    if (rawDate && storeID) {
+                        if (!storeWeeklyDays.has(storeID)) storeWeeklyDays.set(storeID, new Set());
+                        storeWeeklyDays.get(storeID).add(rawDate);
+
+                        if (!storeWeeklyGroupDays.has(storeID)) {
+                            storeWeeklyGroupDays.set(storeID, { weekdays: new Set(), weekends: new Set() });
+                        }
+                        let cDate = parseDateStrToTime(rawDate);
+                        let dayOfWeek = new Date(cDate).getDay();
+                        isWknd = (dayOfWeek === 6 || dayOfWeek === 0);
+                        if (isWknd) storeWeeklyGroupDays.get(storeID).weekends.add(rawDate);
+                        else storeWeeklyGroupDays.get(storeID).weekdays.add(rawDate);
+                    }
+
+                    if (isNaN(qty)) return;
+                    let key = `${storeID}_${prodStd.toLowerCase()}`;
+
+                    if (!weeklySales.has(key)) {
+                        weeklySales.set(key, { totalQty: qty, weekdayQty: isWknd ? 0 : qty, weekendQty: isWknd ? qty : 0 });
+                    } else {
+                        let data = weeklySales.get(key);
+                        data.totalQty += qty;
+                        if (isWknd) data.weekendQty += qty;
+                        else data.weekdayQty += qty;
+                    }
                 } else {
-                    let data = weeklySales.get(key);
-                    data.totalQty += qty;
-                    if (isWknd) data.weekendQty += qty;
-                    else data.weekdayQty += qty;
+                    // --- DẠNG FILE MA TRẬN (MATRIX - Tên cửa hàng ở tiêu đề cột) ---
+                    // Duyệt từng cột của dòng này
+                    Object.entries(row).forEach(([colKey, qtyVal]) => {
+                        let cKey = String(colKey).trim();
+                        if (!cKey) return;
+
+                        // ƯU TIÊN 1: Tìm xem trong Header có chứa Mã SAP (4-5 số) không?
+                        let sID = "";
+                        let sapMatch = cKey.match(/(\d{4,5})/);
+                        if (sapMatch && reverseStoreNamesMap.has(normalizeKey(sapMatch[1]))) {
+                            sID = reverseStoreNamesMap.get(normalizeKey(sapMatch[1]));
+                        } else {
+                            // ƯU TIÊN 2: Tìm theo Tên/Nickname đã normalize
+                            sID = reverseStoreNamesMap.get(normalizeKey(cKey));
+                        }
+
+                        if (sID) {
+                            let qty = Number(String(qtyVal || '0').replace(/,/g, ''));
+                            if (pr && String(pr).toLowerCase().includes('retail kg')) qty /= 1000;
+                            if (isNaN(qty) || qty === 0) return;
+
+                            let key = `${sID}_${prodStd.toLowerCase()}`;
+                            // Với file Matrix không có ngày, ta mặc định chia đều tỉ lệ 5/2 (5 ngày thường, 2 ngày cuối tuần)
+                            let wQty = qty * (5 / 7);
+                            let eQty = qty * (2 / 7);
+
+                            if (!weeklySales.has(key)) {
+                                weeklySales.set(key, { totalQty: qty, weekdayQty: wQty, weekendQty: eQty });
+                            } else {
+                                let d = weeklySales.get(key);
+                                d.totalQty += qty;
+                                d.weekdayQty += wQty;
+                                d.weekendQty += eQty;
+                            }
+                            
+                            // Giả lập số ngày (5 ngày thường, 2 cuối tuần) để denominator > 0
+                            if (!storeWeeklyDays.has(sID)) storeWeeklyDays.set(sID, new Set(['dummy-w1','dummy-w2','dummy-w3','dummy-w4','dummy-w5','dummy-e1','dummy-e2']));
+                            if (!storeWeeklyGroupDays.has(sID)) {
+                                const dummyDays = { weekdays: new Set(['d1','d2','d3','d4','d5']), weekends: new Set(['d6','d7']) };
+                                storeWeeklyGroupDays.set(sID, dummyDays);
+                            }
+                        }
+                    });
                 }
             });
         }
@@ -969,9 +1114,29 @@ btnCalculate.addEventListener('click', () => {
             }
         };
 
-        // Đẩy tất cả các key từ các luồng vào list tổng (chỉ lấy cửa hàng thuộc Lịch Giao Hàng)
-        let syncKeys = [...monthlySales.keys(), ...inventoryMap.keys(), ...inputMap.keys()];
+        // 2026-03-31: Đảm bảo tất cả store trong lịch phải được xuất hiện kể cả khi chưa có số bán/tồn
+        let syncKeysSet = new Set([...monthlySales.keys(), ...inventoryMap.keys(), ...inputMap.keys()]);
         let hasScheduleUploaded = datasets.schedule && datasets.schedule.length > 0;
+
+        if (hasScheduleUploaded) {
+            // Lấy thêm các tổ hợp từ mapping hoặc các dữ liệu khác nếu store đó có trong schedule
+            // Duyệt qua mapping hoặc toàn bộ danh sách sản phẩm đã từng thấy
+            let anyProdStandards = new Set([...standardNamesSet]);
+            // Nếu chưa có mapping, lấy từ Sales/Inventory
+            if (anyProdStandards.size === 0) {
+                monthlySales.forEach(v => anyProdStandards.add(v.prodStd.toLowerCase()));
+                inventoryMap.forEach(v => anyProdStandards.add(v.prodOrig.toLowerCase()));
+                inputMap.forEach(v => anyProdStandards.add(v.prodOrig.toLowerCase()));
+            }
+
+            validSAPs.forEach(sID => {
+                anyProdStandards.forEach(prodName => {
+                    syncKeysSet.add(`${sID}_${prodName.toLowerCase()}`);
+                });
+            });
+        }
+        
+        let syncKeys = Array.from(syncKeysSet);
 
         syncKeys.forEach(k => {
             let parts = k.split('_');
@@ -1213,8 +1378,8 @@ btnCalculate.addEventListener('click', () => {
                 'product': data.bestName,
                 'ads': forecastDay.toFixed(2),
                 'trend': trendExport,
-                'ads_weekday': weekdayAds.toFixed(2),
-                'ads_weekend': weekendAds.toFixed(2),
+                'ads_weekday': wWeekdayAds.toFixed(2),
+                'ads_weekend': wWeekendAds.toFixed(2),
                 'growth': mAds > 0 ? `${leadtimeGrowth.toFixed(1)}%` : (basePeriodDemand > 0 ? 'New' : '0%'),
                 'leadtime': coverageLT,
                 'demand': (totalDemand + penaltyApplied).toFixed(2),
@@ -1223,8 +1388,8 @@ btnCalculate.addEventListener('click', () => {
                 'penalty': penaltyApplied > 0 ? `-${penaltyApplied.toFixed(2)}` : '0',
                 'soq': soq,
                 // Tooltips cho phần lịch sử
-                'tip_weekday': `Tổng bán thực tế: ${weekdayQty.toFixed(2)} / ${weekdayDaysCount} ngày T2-T6 của Store`,
-                'tip_weekend': `Tổng bán thực tế: ${weekendQty.toFixed(2)} / ${weekendDaysCount} ngày T7-CN của Store`,
+                'tip_weekday': `Tổng bán thực tế: ${wWeekdayQty.toFixed(2)} / ${wWeekdayDaysCount} ngày T2-T6 của Store`,
+                'tip_weekend': `Tổng bán thực tế: ${wWeekendQty.toFixed(2)} / ${wWeekendDaysCount} ngày T7-CN của Store`,
                 'tip_leadtime': `Coverage: ${coverageLT} ngày. (Chỉ tính lượng bán ra trong ${coverageLT} ngày giao hàng, không tính phần thiếu hụt trong ${leadTimeArrival.toFixed(1)} ngày chờ)`,
                 'tip_demand': breakdownTip,
                 'tip_inventory': invTooltip,
@@ -1239,8 +1404,8 @@ btnCalculate.addEventListener('click', () => {
             <td>${data.bestName}</td>
             <td>${forecastDay.toFixed(2)}</td>
             <td><b>${trendHtml}</b></td>
-            <td title="Tổng bán thực tế: ${weekdayQty.toFixed(2)} / ${weekdayDaysCount} ngày T2-T6 của Store">${weekdayAds.toFixed(2)}</td>
-            <td title="Tổng bán thực tế: ${weekendQty.toFixed(2)} / ${weekendDaysCount} ngày T7-CN của Store">${weekendAds.toFixed(2)}</td>
+            <td title="Tổng bán thực tế: ${wWeekdayQty.toFixed(2)} / ${wWeekdayDaysCount} ngày T2-T6 của Store">${wWeekdayAds.toFixed(2)}</td>
+            <td title="Tổng bán thực tế: ${wWeekendQty.toFixed(2)} / ${wWeekendDaysCount} ngày T7-CN của Store">${wWeekendAds.toFixed(2)}</td>
             <td><b>${growthHtml}</b></td>
             <td><span title="Coverage: ${coverageLT} ngày. (Chỉ tính lượng bán ra trong ${coverageLT} ngày giao hàng, không tính phần thiếu hụt trong ${leadTimeArrival.toFixed(1)} ngày chờ)">${coverageLT}</span></td>
             <td title="${breakdownTip}">${totalDemandRaw.toFixed(2)}</td>
