@@ -1,27 +1,17 @@
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-$f = "D:\DHF\CONSIGNMENT\Don giao 0104\Lịch 2303-0504.xlsx"
-$zip = [System.IO.Compression.ZipFile]::OpenRead($f)
-$sstEntry = $zip.GetEntry('xl/sharedStrings.xml')
-$strings = @()
-if ($sstEntry) {
-    $xml = [xml](New-Object System.IO.StreamReader($sstEntry.Open())).ReadToEnd()
-    $strings = $xml.sst.si | ForEach-Object { if ($_.t) { $_.t } else { $_.InnerText } }
+$xl = New-Object -ComObject Excel.Application
+$xl.Visible = $false
+$wb = $xl.Workbooks.Open("D:\DHF\CONSIGNMENT\Don giao 0204\W13 DHF 2303-2903.xlsx")
+$ws = $wb.Sheets.Item(1)
+$headerRow = ""
+for ($j = 1; $j -le 15; $j++) {
+    $headerRow += $ws.Cells.Item(1, $j).Text + " | "
 }
-$wsEntry = $zip.GetEntry('xl/worksheets/sheet1.xml')
-if (-not $wsEntry) { $wsEntry = $zip.GetEntry('xl/worksheets/Sheet1.xml') }
-if ($wsEntry) {
-    $xml = [xml](New-Object System.IO.StreamReader($wsEntry.Open())).ReadToEnd()
-    $row = $xml.worksheet.sheetData.row | Select-Object -First 1
-    $headers = @()
-    foreach ($c in $row.c) {
-        if ($c.t -eq 's') { 
-            $val = $strings[[int]$c.v]
-            if ($val -is [System.Xml.XmlElement]) { $val = $val.InnerText }
-            $headers += $val
-        } else {
-            $headers += $c.v
-        }
-    }
-    Write-Output ($headers -join '|')
+Write-Host "WEEKLY FILE ROW 1: $headerRow"
+$headerRow2 = ""
+for ($j = 1; $j -le 15; $j++) {
+    $headerRow2 += $ws.Cells.Item(2, $j).Text + " | "
 }
-$zip.Dispose()
+Write-Host "WEEKLY FILE ROW 2: $headerRow2"
+$wb.Close($false)
+$xl.Quit()
+[System.Runtime.Interopservices.Marshal]::ReleaseComObject($xl) | Out-Null

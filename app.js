@@ -111,7 +111,17 @@ function extractJsonDataCleanly(worksheet) {
         let hasData = false;
         for (let j = 0; j < headers.length; j++) {
             if (row[j] !== undefined && row[j] !== null && String(row[j]).trim() !== '') {
-                obj[headers[j]] = row[j]; // Chỉ dùng key đã được normalize + prefix (Composite) để ngăn trùng lặp
+                obj[headers[j]] = row[j]; // Composite
+
+                // Khôi phục việc đọc các cột đơn giản (sap, date...) để không bị hư tên do prefix chặn.
+                // Ngăn chặn riêng biệt lỗi trượt/chồng lắp lịch các ngày trong tuần (đã xử lý ở bước trước).
+                let rawClean = normalizeKey(headersRaw[j]);
+                const wDays = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+                if (!wDays.some(d => rawClean.includes(d))) {
+                    obj[rawClean] = row[j];
+                    obj[headersRaw[j]] = row[j];
+                }
+                
                 hasData = true;
             }
         }
@@ -936,6 +946,22 @@ btnCalculate.addEventListener('click', () => {
         const storeMonthlyDays = new Map(); // All days
         const storeGroupDays = new Map();  // storeID -> { weekdays: Set, weekends: Set }
 
+        // TẠO BẢN ĐỒ NGƯỢC: Tên Store (Chuẩn hóa) / Nickname -> Mã SAP để xử lý CÁC FILE LỖI THIẾU MÃ
+        const reverseStoreNamesMap = new Map();
+        const buildReverseMap = () => {
+            storeAliasesMap.forEach((aliases, id) => {
+                aliases.forEach(alias => {
+                    reverseStoreNamesMap.set(alias, id);
+                });
+            });
+            storeNamesMap.forEach((name, id) => {
+                reverseStoreNamesMap.set(normalizeKey(name), id);
+                reverseStoreNamesMap.set(id, id);
+            });
+        };
+        // Build lần 1: Lấy dữ liệu Alias từ file Lịch giao hàng (Schedule) làm gốc
+        buildReverseMap();
+
         const processMonthlyData = (dataArr) => {
             if (!dataArr || dataArr.length === 0) return;
             dataArr.forEach(row => {
@@ -945,6 +971,13 @@ btnCalculate.addEventListener('click', () => {
                 if (pr && String(pr).toLowerCase().includes('retail kg')) qty /= 1000;
 
                 let storeID = extractSAP(st);
+                
+                // Hỗ trợ Fallback Lookup cho Monthly Sales y chang Weekly
+                if (storeID && isNaN(parseInt(storeID))) {
+                    let lookedUp = reverseStoreNamesMap.get(normalizeKey(st));
+                    if (lookedUp) storeID = lookedUp;
+                }
+
                 let rawDate = String(row['calendarday'] || row['date'] || row['ngay'] || '').trim();
 
                 // Đăng ký Tên/Nickname từ file Doanh số (ODA)
@@ -1000,18 +1033,9 @@ btnCalculate.addEventListener('click', () => {
         };
 
         processMonthlyData(datasets.monthly);
-        // TẠO BẢN ĐỒ NGƯỢC: Tên Store (Chuẩn hóa) / Nickname -> Mã SAP để xử lý file Matrix Weekly
-        const reverseStoreNamesMap = new Map();
-        storeAliasesMap.forEach((aliases, id) => {
-            aliases.forEach(alias => {
-                reverseStoreNamesMap.set(alias, id);
-            });
-        });
-        // Backfill từ storeNamesMap nếu còn sót
-        storeNamesMap.forEach((name, id) => {
-            reverseStoreNamesMap.set(normalizeKey(name), id);
-            reverseStoreNamesMap.set(id, id);
-        });
+        
+        // Build lần 2: Bổ sung thêm Alias nếu file Doanh Thu Tháng có ghi nhận tên/nickname mới
+        buildReverseMap();
 
         const weeklySales = new Map();
         const storeWeeklyDays = new Map();
@@ -1029,6 +1053,13 @@ btnCalculate.addEventListener('click', () => {
                 if (st) {
                     // --- DẠNG FILE PHẲNG (TRANSACTION) ---
                     let storeID = extractSAP(st);
+                    
+                    // Fallback cực mạnh cho ODA: Nếu ô Name/Nickname không chứa Mã SAP dạng số, ta sẽ lookup từ thư viện!
+                    if (storeID && isNaN(parseInt(storeID))) {
+                        let lookedUp = reverseStoreNamesMap.get(normalizeKey(st));
+                        if (lookedUp) storeID = lookedUp;
+                    }
+
                     let qty = Number(String(row['posquantity'] || row['sum'] || '0').replace(/,/g, ''));
                     if (pr && String(pr).toLowerCase().includes('retail kg')) qty /= 1000;
 
