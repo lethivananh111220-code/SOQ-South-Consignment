@@ -111,9 +111,7 @@ function extractJsonDataCleanly(worksheet) {
         let hasData = false;
         for (let j = 0; j < headers.length; j++) {
             if (row[j] !== undefined && row[j] !== null && String(row[j]).trim() !== '') {
-                obj[headers[j]] = row[j]; // Composite (oda_tensanphamwm)
-                obj[normalizeKey(headersRaw[j])] = row[j]; // Simple (tensanphamwm)
-                obj[headersRaw[j]] = row[j]; // Raw (Tên sản phẩm WM)
+                obj[headers[j]] = row[j]; // Chỉ dùng key đã được normalize + prefix (Composite) để ngăn trùng lặp
                 hasData = true;
             }
         }
@@ -577,8 +575,7 @@ btnCalculate.addEventListener('click', () => {
                     let impliedWeekdayIdx = new Date(targetTimestamp).getDay();
                     let currentTargetNum = isTargetWeekday ? getWeekdayIdx(targetDateStr) : new Date(targetTimestamp).getDate();
 
-                    let possibleNextWeekdayIdx = [];
-                    let possibleNextDigitDays = [];
+                    let possibleNextDeliveryTimestamps = [];
 
                     // Khởi tạo biến kiểm tra Chức năng (Function) của Store
                     let isMer = String(row['function'] || row['Function'] || row['chức năng'] || row['loại'] || '').trim().toLowerCase() === 'mer';
@@ -586,6 +583,7 @@ btnCalculate.addEventListener('click', () => {
                     for (const [key, val] of Object.entries(row)) {
                         let k = String(key).trim();
                         let match = false;
+                        let headerTs = 0;
 
                         let headerWeekdayIdx = getWeekdayIdx(k);
 
@@ -597,32 +595,68 @@ btnCalculate.addEventListener('click', () => {
                                 match = (headerWeekdayIdx === impliedWeekdayIdx);
                             }
                         } else {
-                            // Xử lý Header phức hợp (vd: 01-Thg4_Wednesday) hoặc Header đơn thuần
-                            let kClean = k.toLowerCase();
-                            let targetPadded = targetDateStr.padStart(2, '0'); // "1" -> "01"
-                            
-                            // 1. So khớp Số ngày trực tiếp: "01", "1", "1-", "01-"
-                            let dateMatch = kClean.startsWith(targetDateStr + '-') || kClean.startsWith(targetPadded + '-') || 
-                                           kClean.includes('_' + targetDateStr + '-') || kClean.includes('_' + targetPadded + '-');
-                            
-                            // 2. So khớp Serial Date nếu có trong Key
-                            let serialMatch = false;
-                            let serialInKey = kClean.match(/(\d{5})/);
-                            if (serialInKey) {
-                                let headerTs = parseDateStrToTime(Number(serialInKey[1]));
-                                if (targetTimestamp > 0 && headerTs > 0) {
-                                    let d1 = new Date(targetTimestamp);
-                                    let d2 = new Date(headerTs);
-                                    serialMatch = (d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate());
+                        // Xử lý Header phức hợp (vd: 01-Thg4_Wednesday) hoặc Header đơn thuần
+                        let kClean = k.toLowerCase();
+                        
+                        // Lấy số ngày của mục tiêu (VD: 1 hoặc 01)
+                        let tNum = new Date(targetTimestamp).getDate().toString();
+                        let tPadded = tNum.padStart(2, '0');
+
+                        // 1. So khớp Số ngày trực tiếp: "01", "1", "1-", "01-"
+                        let dateMatch = kClean.startsWith(tNum + '-') || kClean.startsWith(tPadded + '-') || 
+                                       kClean.includes('_' + tNum + '-') || kClean.includes('_' + tPadded + '-');
+                        
+                        // 2. So khớp Số ngày viết liền (Ví dụ: 01thg4)
+                        if (!dateMatch) {
+                            let m = kClean.match(/^(\d{1,2})/);
+                            if (m && (m[1] === tNum || m[1] === tPadded)) dateMatch = true;
+                        }
+
+                        // 3. So khớp Serial Date nếu có trong Key
+                        let serialMatch = false;
+                        let serialInKey = kClean.match(/(\d{5})/);
+                        if (serialInKey) {
+                            headerTs = parseDateStrToTime(Number(serialInKey[1]));
+                            if (targetTimestamp > 0 && headerTs > 0) {
+                                let d1 = new Date(targetTimestamp);
+                                let d2 = new Date(headerTs);
+                                serialMatch = (d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate());
+                            }
+                        }
+
+                        // NEW: Trích xuất Timestamp cho tất cả các cột nếu có định dạng ngày (vd: 01-thg4)
+                        if (headerTs === 0) {
+                            // Thử bóc tách ngày/tháng từ chuỗi "01-thg4"
+                            let mDate = kClean.match(/^(\d{1,2})[^\d]+(\d{1,2})/);
+                            if (mDate) {
+                                let dd = parseInt(mDate[1]);
+                                let mm = parseInt(mDate[2]) - 1;
+                                let yyyy = new Date(targetTimestamp).getFullYear();
+                                let dTemp = new Date(yyyy, mm, dd);
+                                // Nếu ngày quá xa mục tiêu (vd: tháng 12 so với tháng 1), lùi/tiến năm
+                                headerTs = dTemp.getTime();
+                            } else {
+                                // Thử bóc tách ngày đơn thuần (vd: 01) -> Giả định cùng tháng/năm với target
+                                let mDay = kClean.match(/^(\d{1,2})/);
+                                if (mDay) {
+                                    let dd = parseInt(mDay[1]);
+                                    let tDate = new Date(targetTimestamp);
+                                    let dTemp = new Date(tDate.getFullYear(), tDate.getMonth(), dd);
+                                    // Xử lý rollover tháng nếu cần (vd: target là 31/3, header là 1)
+                                    if (dd < tDate.getDate() - 15) dTemp.setMonth(dTemp.getMonth() + 1);
+                                    if (dd > tDate.getDate() + 15) dTemp.setMonth(dTemp.getMonth() - 1);
+                                    headerTs = dTemp.getTime();
                                 }
                             }
-                            
-                            match = dateMatch || serialMatch;
-
+                        }
+                        
+                        // ƯU TIÊN: Nếu Header chứa thông tin NGÀY CỐ ĐỊNH, nó sẽ ghi đè việc so khớp THỨ chung chung
+                        if (dateMatch || serialMatch) {
+                            match = true;
+                        } else if (!isTargetWeekday && headerWeekdayIdx === -1) {
                             // Fallback nếu headers quá đơn giản (chỉ "1", "2")
-                            if (!match) {
-                                match = (k === targetDateStr || k.startsWith(targetDateStr + '/') || k.startsWith(targetDateStr + '-'));
-                            }
+                            match = (k === tNum || k === tPadded || k.startsWith(tNum + '/') || k.startsWith(tPadded + '/'));
+                        }
                         }
 
                         let v = String(val).trim().toLowerCase().replace(/\s+/g, '');
@@ -647,12 +681,16 @@ btnCalculate.addEventListener('click', () => {
                             if (match) {
                                 hasDelivery = true;
                             }
-                            // Theo dõi tất cả các mốc có giao hàng tiếp theo
-                            if (headerWeekdayIdx !== -1) {
-                                possibleNextWeekdayIdx.push(headerWeekdayIdx);
-                            } else {
-                                let m = k.match(/^(\d{1,2})/);
-                                if (m) possibleNextDigitDays.push(parseInt(m[1]));
+                            // Theo dõi tất cả các mốc có giao hàng tiếp theo (Dạng Timestamp)
+                            if (headerTs > 0) {
+                                possibleNextDeliveryTimestamps.push(headerTs);
+                            } else if (headerWeekdayIdx !== -1) {
+                                // Nếu là THỨ, quy đổi sang timestamp tương ứng trong tuần đó/tuần sau
+                                let dTarget = new Date(targetTimestamp);
+                                let diff = (headerWeekdayIdx - dTarget.getDay() + 7) % 7;
+                                let dNext = new Date(dTarget);
+                                dNext.setDate(dNext.getDate() + diff);
+                                possibleNextDeliveryTimestamps.push(dNext.getTime());
                             }
                         }
                     }
@@ -660,29 +698,11 @@ btnCalculate.addEventListener('click', () => {
                     // Nếu không có lịch giao -> Bỏ qua
                     if (!hasDelivery) return;
 
-                    // --- TÍNH TOÁN LEADTIME ĐỘNG TỪ MA TRẬN LỊCH GIAO HÀNG ---
-                    if (possibleNextWeekdayIdx.length > 0) {
-                        // Ma trận đang dùng tên THỨ -> Tính khoảng cách bằng hệ tuần hoàn 7 ngày
-                        let anchorIdx = isTargetWeekday ? currentTargetNum : impliedWeekdayIdx;
-                        let future = possibleNextWeekdayIdx.filter(d => d !== anchorIdx && d > anchorIdx);
-                        if (future.length > 0) {
-                            dynamicLT = Math.min(...future) - anchorIdx;
-                        } else {
-                            let past = possibleNextWeekdayIdx.filter(d => d !== anchorIdx && d < anchorIdx);
-                            // Rollover sang tuần mới
-                            if (past.length > 0) dynamicLT = (7 - anchorIdx) + Math.min(...past);
-                        }
-                    } else if (possibleNextDigitDays.length > 0) {
-                        // Ma trận đang dùng số NGÀY -> Tính khoảng cách bằng toán thông thường
-                        let anchorNum = currentTargetNum;
-                        let future = possibleNextDigitDays.filter(d => d !== anchorNum && d > anchorNum);
-                        if (future.length > 0) {
-                            dynamicLT = Math.min(...future) - anchorNum;
-                        } else {
-                            let past = possibleNextDigitDays.filter(d => d !== anchorNum && d < anchorNum);
-                            // Rollover sang tháng mới
-                            if (past.length > 0) dynamicLT = (30 - anchorNum) + Math.min(...past);
-                        }
+                    // --- TÍNH TOÁN LEADTIME ĐỘNG TỪ MA TRẬN LỊCH GIAO HÀNG (Dạng Timestamp) ---
+                    let futureDates = possibleNextDeliveryTimestamps.filter(t => t > targetTimestamp + 3600000); // Cách ít nhất 1h
+                    if (futureDates.length > 0) {
+                        let nextTS = Math.min(...futureDates);
+                        dynamicLT = Math.round((nextTS - targetTimestamp) / 86400000);
                     }
                 }
 
