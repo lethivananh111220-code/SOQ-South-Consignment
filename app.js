@@ -1697,11 +1697,9 @@ if (navHistory && navDashboard) {
 
                 if (data && data.dateStr === todayStr) {
                     // Dữ liệu hợp lệ (trong ngày)
-                    finalResults = data.results;
-                    scheduleFileName = data.filename;
-
                     // Render bảng từ Array
-                    renderTableFromArray(data.results);
+                    finalResults = prepHistoricalData(data.results);
+                    renderSOQTable(finalResults);
                     btnExport.style.display = 'inline-block';
 
                     let timeStr = new Date(data.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -1719,18 +1717,10 @@ if (navHistory && navDashboard) {
         }
     });
 
-    // Hàm bổ trợ Render bảng từ mảng dữ liệu
-    function renderTableFromArray(arr) {
-        let tbody = document.getElementById('soq-tbody');
-        tbody.innerHTML = '';
-        arr.forEach(item => {
-            let tr = document.createElement('tr');
-
-            // --- Bổ sung xử lý màu sắc và biểu tượng như bản SOQ gốc ---
-            
+    function prepHistoricalData(arr) {
+        return arr.map(item => {
             // 1. Phân tích Xu hướng (Trend)
             let trendVal = String(item.trend || '-').trim();
-            // Xử lý cả trường hợp số dạng "4.2%" hoặc "+4.2%" hoặc "▲ 4.2%"
             let trendNum = parseFloat(trendVal.replace(/[▲▼+%\s]/g, ''));
             let trendHtml = `<span>${trendVal}</span>`;
             
@@ -1754,33 +1744,33 @@ if (navHistory && navDashboard) {
             if (growthVal.toLowerCase().includes('new') || growthVal.toLowerCase().includes('mới')) {
                 growthHtml = `<span style="color: var(--success)">${growthVal}</span>`;
             } else if (!isNaN(growthNum)) {
-                if (growthNum > 1e-6) { // Positive
+                if (growthNum > 1e-6) {
                     growthHtml = `<span style="color: var(--success)">+${growthNum.toFixed(1)}%</span>`;
-                } else if (growthNum < -1e-6) { // Negative
+                } else if (growthNum < -1e-6) {
                     growthHtml = `<span style="color: var(--danger)">-${Math.abs(growthNum).toFixed(1)}%</span>`;
                 } else {
                     growthHtml = `<span>0.0%</span>`;
                 }
             }
 
-            // Mapping lại các cột từ safe-keys (Firebase) sang giao diện
-            tr.innerHTML = `
-                <td>${item.sap || ''}</td>
-                <td>${item.store || ''}</td>
-                <td>${item.product || ''}</td>
-                <td>${item.ads || '0.00'}</td>
-                <td><b>${trendHtml}</b></td>
-                <td title="${item.tip_weekday || ''}">${item.ads_weekday || '0.00'}</td>
-                <td title="${item.tip_weekend || ''}">${item.ads_weekend || '0.00'}</td>
-                <td><b>${growthHtml}</b></td>
-                <td><b><span title="${item.tip_leadtime || ''}">${item.leadtime || ''}</span></b></td>
-                <td title="${item.tip_demand || ''}">${item.demand || '0.00'}</td>
-                <td class="warning" title="${item.tip_inventory || ''}">${item.inventory || 0}</td>
-                <td class="highlight" title="${item.tip_input || ''}">${item.input || 0}</td>
-                <td style="color:${parseFloat(item.penalty) < 0 ? 'var(--danger)' : ''}" title="${item.tip_penalty || ''}">${item.penalty || '0'}</td>
-                <td class="highlight">${item.soq || 0}</td>
-            `;
-            tbody.appendChild(tr);
+            item.trendHtml = trendHtml;
+            item.growthHtml = growthHtml;
+            item.demandRaw = item.demand || '0.00';
+            
+            // Clean undefineds to avoid "undefined" strings
+            item.sap = item.sap || '';
+            item.store = item.store || '';
+            item.product = item.product || '';
+            item.ads = item.ads || '0.00';
+            item.ads_weekday = item.ads_weekday || '0.00';
+            item.ads_weekend = item.ads_weekend || '0.00';
+            item.leadtime = item.leadtime || '';
+            item.inventory = item.inventory || 0;
+            item.input = item.input || 0;
+            item.penalty = item.penalty || '0';
+            item.soq = item.soq || 0;
+            
+            return item;
         });
     }
 
@@ -1790,8 +1780,8 @@ if (navHistory && navDashboard) {
         let histName = await loadFromDB('soq_latest_filename');
 
         if (histArr && !histArr.invalidated) {
-            renderTableFromArray(histArr); // Render lại từ mảng để áp dụng Style mới nhất
-            finalResults = histArr;
+            finalResults = prepHistoricalData(histArr);
+            renderSOQTable(finalResults); // Render lại từ mảng để áp dụng Style mới nhất
             if (histName && !histName.invalidated) scheduleFileName = histName;
             btnExport.style.display = 'inline-block';
             titleSpan.innerHTML = `Kết Quả Dự Báo <span style="font-size: 0.6em; background: rgba(255,152,0,0.2); color: #ff9800; border: 1px solid #ff9800; padding: 4px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">Local: Bản lưu máy bạn</span>`;
@@ -1882,6 +1872,6 @@ document.querySelectorAll('.sortable').forEach(th => {
 
         document.querySelectorAll('.sort-icon').forEach(icon => icon.textContent = '');
         let targetIcon = th.querySelector('.sort-icon');
-        if (targetIcon) targetIcon.textContent = currentSort.direction === 1 ? ' ?' : ' ?';
+        if (targetIcon) targetIcon.textContent = currentSort.direction === 1 ? ' \u25BC' : ' \u25B2';
     });
 });
