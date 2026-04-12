@@ -134,9 +134,17 @@ function extractJsonDataCleanly(worksheet) {
 function parseDateStrToTime(val) {
     if (!val && val !== 0) return 0;
     if (typeof val === 'number') {
-        return new Date(Math.round((val - 25569) * 86400 * 1000)).getTime();
+        // Fix for pure Excel serial numbers (brings it closer to local midnight)
+        let utcDate = new Date(Math.round((val - 25569) * 86400 * 1000));
+        return new Date(utcDate.getUTCFullYear(), utcDate.getUTCMonth(), utcDate.getUTCDate()).getTime();
     }
     let s = String(val).trim().split(' ')[0]; // Bỏ time nếu có
+
+    // Support YYYY-MM-DD formats natively returning local midnight
+    let m2 = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+    if (m2) {
+        return new Date(parseInt(m2[1], 10), parseInt(m2[2], 10) - 1, parseInt(m2[3], 10)).getTime();
+    }
 
     // Support DD/MM/YYYY or MM/DD/YYYY formats
     let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
@@ -167,7 +175,11 @@ function parseDateStrToTime(val) {
     }
 
     const parsed = new Date(s).getTime();
-    if (!isNaN(parsed)) return parsed;
+    if (!isNaN(parsed)) {
+        // Ensure returning local midnight instead of UTC (fallback if parsed successfully)
+        let d = new Date(parsed);
+        return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    }
     return 0; // fallback numerical value
 }
 
@@ -422,9 +434,9 @@ function extractSAP(str) {
     if (!str) return "";
     let s = String(str).trim();
     // Ưu tiên: Nếu là chuỗi số đứng độc lập (có thể có chữ bao quanh bởi dấu cách) -> Lấy số
-    // Nếu là mã dính liền chữ+số (vd: H1561) -> Không bóc tách số, giữ nguyên mã đó
     let m = s.match(/\b\d+\b/);
     if (m) return Number(m[0]).toString();
+    
     return s.toLowerCase();
 }
 
@@ -768,6 +780,45 @@ btnCalculate.addEventListener('click', () => {
             return 1; // Fallback
         };
 
+        // TẠO BẢN ĐỒ NGƯỢC SỚM: Tên Store (Chuẩn hóa) / Nickname -> Mã SAP để xử lý Tồn Kho & Nhập
+        const reverseStoreNamesMap = new Map();
+        const buildReverseMap = () => {
+            storeAliasesMap.forEach((aliases, id) => {
+                aliases.forEach(alias => {
+                    reverseStoreNamesMap.set(alias, id);
+                });
+            });
+            storeNamesMap.forEach((name, id) => {
+                reverseStoreNamesMap.set(normalizeKey(name), id);
+                reverseStoreNamesMap.set(id, id);
+            });
+        };
+        // Build lần 1: Lấy dữ liệu Alias từ file Lịch giao hàng (Schedule) làm gốc
+        buildReverseMap();
+
+        const resolveStoreID = (rawSap, nick) => {
+            let finalID = "";
+            let extracted = extractSAP(rawSap);
+            if (extracted && !isNaN(parseInt(extracted))) {
+                finalID = extracted;
+            } else {
+                let nKey = normalizeKey(nick);
+                let lookedUp = reverseStoreNamesMap.get(nKey);
+                if (!lookedUp) {
+                    for (let [alias, id] of reverseStoreNamesMap.entries()) {
+                        if (alias && nKey && (alias.includes(nKey) || nKey.includes(alias))) {
+                            if (alias.length > 5 || nKey.length > 5) { // Tránh nhầm lẫn chữ tắt quá ngắn
+                                lookedUp = id;
+                                break;
+                            }
+                        }
+                    }
+                }
+                finalID = lookedUp ? lookedUp : extractSAP(nick);
+            }
+            return finalID;
+        }
+
         // --- BƯỚC 0: TÌM NGÀY LỚN NHẤT CỦA TỪNG STORE LÀM MỐC (T) ---
         const storeMaxInvDateMap = new Map();
         const storeMaxOrderDateMap = new Map();
@@ -777,6 +828,10 @@ btnCalculate.addEventListener('click', () => {
                 let store = row['sap'] || row['storecode'] || row['nickname'] || row['storename'] || row['store'] || row['mach'] || row['article'];
                 if (!store) return;
                 let storeID = extractSAP(store);
+                if (storeID && isNaN(parseInt(storeID))) {
+                    let lookedUp = reverseStoreNamesMap.get(normalizeKey(store));
+                    if (lookedUp) storeID = lookedUp;
+                }
                 let rawDate = row['date'] || row['Date'] || row['ngay'] || row['ngày'] || 0;
                 let cDate = parseDateStrToTime(rawDate);
                 if (cDate > 0) {
@@ -788,10 +843,11 @@ btnCalculate.addEventListener('click', () => {
 
         if (datasets.input && datasets.input.length > 0) {
             datasets.input.forEach(row => {
-                let store = row['nickname'] || row['sap'];
-                if (!store) return;
-                let storeID = extractSAP(store);
-                let rawDate = row['orderdate'] || row['Order date'] || row['completeddate'] || row['Completed date'] || row['date'] || 0;
+                let rawSap = extractSAP(row['sap'] || row['storecode'] || row['mach'] || row['macuahang'] || row['sapcode']);
+                let nick = row['nickname'] || row['storename'] || row['store'] || row['tencuahang'] || row['sap'] || '';
+                let storeID = resolveStoreID(rawSap, nick);
+                if (!storeID) return;
+                let rawDate = row['orderdate'] || row['Order date'] || row['completeddate'] || row['Completed date'] || row['date'] || row['ngaydathang'] || row['ngay'] || row['ngaytao'] || row['createddate'] || 0;
                 let cDate = parseDateStrToTime(rawDate);
                 if (cDate > 0) {
                     let currentMax = storeMaxOrderDateMap.get(storeID) || 0;
@@ -826,6 +882,10 @@ btnCalculate.addEventListener('click', () => {
                 if (!store || !prod) return;
 
                 let storeID = extractSAP(store);
+                if (storeID && isNaN(parseInt(storeID))) {
+                    let lookedUp = reverseStoreNamesMap.get(normalizeKey(store));
+                    if (lookedUp) storeID = lookedUp;
+                }
                 let sName = row['tencuahang'] || row['tncahng'] || row['storename'] || row['store'];
                 if (sName && !storeNamesMap.has(storeID)) storeNamesMap.set(storeID, String(sName).trim());
 
@@ -881,16 +941,17 @@ btnCalculate.addEventListener('click', () => {
 
         if (datasets.input && datasets.input.length > 0) {
             datasets.input.forEach(row => {
-                let store = row['nickname'] || row['sap'] || row['storecode'] || row['storename'] || row['store'];
                 let prod = row['productnameprimarylanguage'] || row['productname'] || row['product'] || row['tensanphamwm'] || row['tensanpham'] || row['articlename'] || row['article'];
                 let status = String(row['orderstatus'] || row['status'] || row['trangthai'] || '').toLowerCase();
-
-                if (!store || !prod) return;
-
+                
+                if (!prod) return;
                 // Lọc bỏ hàng Hủy / Đã hoàn (Chỉ lấy Completed)
                 if (status && (status.includes('cancel') || status.includes('hủy') || status.includes('reject'))) return;
 
-                let storeID = extractSAP(store);
+                let rawSap = extractSAP(row['sap'] || row['storecode'] || row['mach'] || row['macuahang'] || row['sapcode']);
+                let nick = row['nickname'] || row['storename'] || row['store'] || row['tencuahang'] || row['sap'] || '';
+                let storeID = resolveStoreID(rawSap, nick);
+                if (!storeID) return;
                 let exactODAName = String(prod).trim();
                 let prodStd = normalizeProductName(prod);
                 if (!prodStd) {
@@ -901,10 +962,18 @@ btnCalculate.addEventListener('click', () => {
                 let key = `${storeID}_${prodStd.toLowerCase()}`;
                 actualODA_Names.set(prodStd.toLowerCase(), exactODAName);
 
-                let qty = Number(String(row['deliveredqty'] || row['quantity'] || row['quantityorder'] || row['sldat'] || row['slgiao'] || row['sldathang'] || row['totalqty'] || '0').replace(/,/g, ''));
+                let dQty = row['deliveredqty'] !== undefined ? row['deliveredqty'] : row['slgiao'];
+                let valStr = "";
+                if (dQty !== undefined && String(dQty).trim() !== "") {
+                    valStr = String(dQty);
+                } else {
+                    let oQty = row['orderedqty'] || row['orderqty'] || row['quantity'] || row['orderitemqty'] || row['quantityorder'] || row['sldat'] || row['sldathang'] || row['totalqty'] || row['soluong'] || row['soluongnhap'] || row['inputquantity'] || row['sum'] || row['total'] || row['qty'];
+                    valStr = String(oQty || '0');
+                }
+                let qty = Number(valStr.replace(/,/g, ''));
 
                 // Trích xuất ngày giao hàng/nhập hàng
-                let rawDate = row['orderdate'] || row['Order date'] || row['completeddate'] || row['Completed date'] || row['date'] || 0;
+                let rawDate = row['orderdate'] || row['Order date'] || row['completeddate'] || row['Completed date'] || row['date'] || row['ngaydathang'] || row['ngay'] || row['ngaytao'] || row['createddate'] || 0;
                 let cOrderDate = parseDateStrToTime(rawDate);
                 let cDeliveryDate = cOrderDate > 0 ? cOrderDate + 86400000 : 0; // Cộng thêm 1 ngày giao
 
@@ -945,22 +1014,6 @@ btnCalculate.addEventListener('click', () => {
         const monthlySales = new Map();
         const storeMonthlyDays = new Map(); // All days
         const storeGroupDays = new Map();  // storeID -> { weekdays: Set, weekends: Set }
-
-        // TẠO BẢN ĐỒ NGƯỢC: Tên Store (Chuẩn hóa) / Nickname -> Mã SAP để xử lý CÁC FILE LỖI THIẾU MÃ
-        const reverseStoreNamesMap = new Map();
-        const buildReverseMap = () => {
-            storeAliasesMap.forEach((aliases, id) => {
-                aliases.forEach(alias => {
-                    reverseStoreNamesMap.set(alias, id);
-                });
-            });
-            storeNamesMap.forEach((name, id) => {
-                reverseStoreNamesMap.set(normalizeKey(name), id);
-                reverseStoreNamesMap.set(id, id);
-            });
-        };
-        // Build lần 1: Lấy dữ liệu Alias từ file Lịch giao hàng (Schedule) làm gốc
-        buildReverseMap();
 
         const processMonthlyData = (dataArr) => {
             if (!dataArr || dataArr.length === 0) return;
@@ -1301,12 +1354,12 @@ btnCalculate.addEventListener('click', () => {
             
             // Tách Demand dự kiến lúc chờ hàng (tránh âm kho dồn vào SOQ gây overstock)
             let leadTimeDemandBase = calculatePeriodDemand(invDate, leadTimeArrival, weekdayAds, weekendAds);
-            let demandLeadTime = leadTimeDemandBase * trendFactor;
+            let demandLeadTime = leadTimeDemandBase;
 
             // Demand kỳ bán SOQ (Chỉ tính Coverage)
             let coverageStartDate = invDate + (leadTimeArrival * 24 * 60 * 60 * 1000);
             let coverageDemandBase = calculatePeriodDemand(coverageStartDate, coverageLT, weekdayAds, weekendAds);
-            let totalDemand = coverageDemandBase * trendFactor;
+            let totalDemand = coverageDemandBase;
 
             // --- NEW: Tăng trưởng theo Leadtime (Đối chiếu Weekly vs Monthly trên từng Thứ) ---
             let leadtimeGrowth = 0;
@@ -1339,9 +1392,9 @@ btnCalculate.addEventListener('click', () => {
             let safetyStock = 0;
             if (forecastDay > 0) {
                 if (tierLevel === 1) {
-                    safetyStock = isWeekendDelivery ? (weekendAds * coverageLT * 0.30 * trendFactor) : (weekdayAds * coverageLT * 0.15 * trendFactor);
+                    safetyStock = isWeekendDelivery ? (weekendAds * coverageLT * 0.30) : (weekdayAds * coverageLT * 0.15);
                 } else if (tierLevel === 2) {
-                    safetyStock = isWeekendDelivery ? (weekendAds * coverageLT * 0.20 * trendFactor) : (weekdayAds * coverageLT * 0.10 * trendFactor);
+                    safetyStock = isWeekendDelivery ? (weekendAds * coverageLT * 0.20) : (weekdayAds * coverageLT * 0.10);
                 }
                 totalDemand += safetyStock;
             }
@@ -1421,7 +1474,7 @@ btnCalculate.addEventListener('click', () => {
             let storeNameStr = storeNamesMap.get(data.storeID) || data.storeOrig;
 
             let totalDemandRaw = totalDemand + penaltyApplied;
-            let breakdownTip = `Công thức: Demand (sau Trend) + SafetyStock. \n- Nhu cầu gốc (Coverage): ${coverageDemandBase.toFixed(2)} \n- Hệ số xu hướng: x${trendFactor.toFixed(3)}\n=> Demand (sau Trend): ${(coverageDemandBase * trendFactor).toFixed(2)}\n- SafetyStock: +${safetyStock.toFixed(2)} \n- Penalty (Giảm trừ): -${penaltyApplied.toFixed(2)}`;
+            let breakdownTip = `Công thức: Demand (Nhu cầu gốc) + SafetyStock. \n- Nhu cầu gốc (Coverage): ${coverageDemandBase.toFixed(2)}\n- SafetyStock: +${safetyStock.toFixed(2)} \n- Penalty (Giảm trừ): -${penaltyApplied.toFixed(2)}`;
 
             finalResults.push({
                 'sap': data.storeID,
