@@ -1482,16 +1482,19 @@ btnCalculate.addEventListener('click', () => {
                 'product': data.bestName,
                 'ads': forecastDay.toFixed(2),
                 'trend': trendExport,
+                'trendHtml': trendHtml,
                 'ads_weekday': wWeekdayAds.toFixed(2),
                 'ads_weekend': wWeekendAds.toFixed(2),
                 'growth': mAds > 0 ? `${leadtimeGrowth.toFixed(1)}%` : (basePeriodDemand > 0 ? 'New' : '0%'),
+                'growthHtml': growthHtml,
                 'leadtime': coverageLT,
                 'demand': (totalDemand + penaltyApplied).toFixed(2),
+                'demandRaw': totalDemandRaw.toFixed(2),
                 'inventory': Number(finalInv.toFixed(2)),
                 'input': Number(finalInput.toFixed(2)),
                 'penalty': penaltyApplied > 0 ? `-${penaltyApplied.toFixed(2)}` : '0',
                 'soq': soq,
-                // Tooltips cho phần lịch sử
+                // Tooltips
                 'tip_weekday': `Tổng bán thực tế: ${wWeekdayQty.toFixed(2)} / ${wWeekdayDaysCount} ngày T2-T6 của Store`,
                 'tip_weekend': `Tổng bán thực tế: ${wWeekendQty.toFixed(2)} / ${wWeekendDaysCount} ngày T7-CN của Store`,
                 'tip_leadtime': `Coverage: ${coverageLT} ngày. (Chỉ tính lượng bán ra trong ${coverageLT} ngày giao hàng, không tính phần thiếu hụt trong ${leadTimeArrival.toFixed(1)} ngày chờ)`,
@@ -1500,26 +1503,9 @@ btnCalculate.addEventListener('click', () => {
                 'tip_input': inputTooltip,
                 'tip_penalty': disposalTooltip
             });
-
-            let tr = document.createElement('tr');
-            tr.innerHTML = `
-            <td>${data.storeID}</td>
-            <td>${storeNameStr}</td>
-            <td>${data.bestName}</td>
-            <td>${forecastDay.toFixed(2)}</td>
-            <td><b>${trendHtml}</b></td>
-            <td title="Tổng bán thực tế: ${wWeekdayQty.toFixed(2)} / ${wWeekdayDaysCount} ngày T2-T6 của Store">${wWeekdayAds.toFixed(2)}</td>
-            <td title="Tổng bán thực tế: ${wWeekendQty.toFixed(2)} / ${wWeekendDaysCount} ngày T7-CN của Store">${wWeekendAds.toFixed(2)}</td>
-            <td><b>${growthHtml}</b></td>
-            <td><span title="Coverage: ${coverageLT} ngày. (Chỉ tính lượng bán ra trong ${coverageLT} ngày giao hàng, không tính phần thiếu hụt trong ${leadTimeArrival.toFixed(1)} ngày chờ)">${coverageLT}</span></td>
-            <td title="${breakdownTip}">${totalDemandRaw.toFixed(2)}</td>
-            <td class="warning" title="${invTooltip}">${Number(finalInv.toFixed(2))}</td>
-            <td class="highlight" title="${inputTooltip}">${Number(finalInput.toFixed(2))}</td>
-            <td style="color:${penaltyApplied > 0 ? 'var(--danger)' : ''}" title="${disposalTooltip}">${penaltyApplied > 0 ? `-${penaltyApplied.toFixed(2)}` : '0'}</td>
-            <td class="highlight">${soq}</td>
-        `;
-            tbody.appendChild(tr);
         });
+
+        renderSOQTable(finalResults);
 
         if (finalResults.length === 0) {
             let monthlyKeys = (datasets.monthly && datasets.monthly.length > 0) ? Object.keys(datasets.monthly[0]).join(', ') : 'No data';
@@ -1834,3 +1820,68 @@ if (navHistory && navDashboard) {
         }
     });
 }
+
+// --- TABLE SORTING LOGIC ---
+let currentSort = { column: null, direction: 1 };
+
+function renderSOQTable(data) {
+    const tbody = document.getElementById('soq-tbody');
+    tbody.innerHTML = ``;
+    data.forEach(item => {
+        let tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${item.sap}</td>
+            <td>${item.store}</td>
+            <td>${item.product}</td>
+            <td>${item.ads}</td>
+            <td><b>${item.trendHtml}</b></td>
+            <td title="${item.tip_weekday}">${item.ads_weekday}</td>
+            <td title="${item.tip_weekend}">${item.ads_weekend}</td>
+            <td><b>${item.growthHtml}</b></td>
+            <td><span title="${item.tip_leadtime}">${item.leadtime}</span></td>
+            <td title="${item.tip_demand}">${item.demandRaw}</td>
+            <td class="warning" title="${item.tip_inventory}">${item.inventory}</td>
+            <td class="highlight" title="${item.tip_input}">${item.input}</td>
+            <td style="color:${item.penalty !== '0' ? 'var(--danger)' : ''}" title="${item.tip_penalty}">${item.penalty}</td>
+            <td class="highlight">${item.soq}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+document.querySelectorAll('.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+        let col = th.getAttribute('data-sort');
+        if (currentSort.column === col) {
+            currentSort.direction *= -1;
+        } else {
+            currentSort.column = col;
+            currentSort.direction = 1;
+        }
+
+        finalResults.sort((a, b) => {
+            let valA = a[col];
+            let valB = b[col];
+
+            if (typeof valA === 'string') valA = valA.toLowerCase();
+            if (typeof valB === 'string') valB = valB.toLowerCase();
+
+            let numA = parseFloat(String(valA).replace(/[^0-9.-]/g, ''));
+            let numB = parseFloat(String(valB).replace(/[^0-9.-]/g, ''));
+
+            if (!isNaN(numA) && !isNaN(numB) && String(valA).match(/\d/) && String(valB).match(/\d/)) {
+                return (numA - numB) * currentSort.direction;
+            }
+
+            if (valA < valB) return -1 * currentSort.direction;
+            if (valA > valB) return 1 * currentSort.direction;
+            return 0;
+        });
+
+        renderSOQTable(finalResults);
+
+        document.querySelectorAll('.sort-icon').forEach(icon => icon.textContent = '');
+        let targetIcon = th.querySelector('.sort-icon');
+        if (targetIcon) targetIcon.textContent = currentSort.direction === 1 ? ' ?' : ' ?';
+    });
+});

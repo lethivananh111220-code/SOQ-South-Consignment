@@ -130,20 +130,20 @@
                     <table class="data-table" id="soq-table">
                         <thead>
                             <tr>
-                                <th>Mã SAP (Store)</th>
-                                <th>Tên Cửa Hàng</th>
-                                <th>Tên Sản Phẩm</th>
-                                <th>Trung Bình Bán/Ngày</th>
-                                <th>Xu Hướng (%)</th>
-                                <th title="Trung bình bán Thứ 2 - Thứ 6">ADS T2-T6</th>
-                                <th title="Trung bình bán Thứ 7 - Chủ Nhật">ADS T7-CN</th>
-                                <th title="Tăng trưởng sức bán trong chu kỳ Leadtime so với trung bình tháng">Tăng trưởng theo leadtime (%)</th>
-                                <th>Leadtime</th>
-                                <th>Total Demand</th>
-                                <th>Tồn (Inv)</th>
-                                <th>Nhập (Input)</th>
-                                <th>Giảm trừ (Penalty)</th>
-                                <th>SOQ (Đơn đặt)</th>
+                                <th class="sortable" data-sort="sap">Mã SAP (Store) <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="store">Tên Cửa Hàng <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="product">Tên Sản Phẩm <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="ads">Trung Bình Bán/Ngày <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="trend">Xu Hướng (%) <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="ads_weekday" title="Trung bình bán Thứ 2 - Thứ 6">ADS T2-T6 <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="ads_weekend" title="Trung bình bán Thứ 7 - Chủ Nhật">ADS T7-CN <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="growth" title="Tăng trưởng sức bán trong chu kỳ Leadtime so với trung bình tháng">Tăng trưởng theo leadtime (%) <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="leadtime">Leadtime <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="demand">Total Demand <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="inventory">Tồn (Inv) <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="input">Nhập (Input) <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="penalty">Giảm trừ (Penalty) <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="soq">SOQ (Đơn đặt) <span class="sort-icon"></span></th>
                             </tr>
                         </thead>
                         <tbody id="soq-tbody">

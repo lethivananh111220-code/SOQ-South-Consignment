@@ -403,3 +403,8 @@ button {
         z-index: 25 !important;
     }
 }
+
+
+th.sortable { cursor: pointer; user-select: none; }
+th.sortable:hover { background-color: rgba(255, 255, 255, 0.1); }
+.sort-icon { font-size: 0.8em; margin-left: 5px; color: var(--primary); }
