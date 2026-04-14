@@ -1713,7 +1713,34 @@ function filterTable() {
 }
 
 if (searchStoreInput && searchProductInput) {
-    searchStoreInput.addEventListener('input', filterTable);
+    searchStoreInput.addEventListener('input', () => {
+        // Khi gõ tìm kiếm cửa hàng, tự động reset bảng về thứ tự chuẩn của riêng cửa hàng đó
+        if (currentSort && currentSort.direction !== 0) {
+            currentSort.column = null;
+            currentSort.direction = 0;
+            document.querySelectorAll('.sort-icon').forEach(icon => icon.textContent = '');
+            
+            if (typeof finalResults !== 'undefined' && finalResults) {
+                finalResults.sort((a, b) => {
+                    let sapCompare = String(a.sap).localeCompare(String(b.sap), undefined, { numeric: true });
+                    if (sapCompare !== 0) return sapCompare;
+                    
+                    let idxA = CUSTOM_PRODUCT_ORDER.findIndex(p => p.toLowerCase() === String(a.product).trim().toLowerCase());
+                    let idxB = CUSTOM_PRODUCT_ORDER.findIndex(p => p.toLowerCase() === String(b.product).trim().toLowerCase());
+                    
+                    idxA = idxA !== -1 ? idxA : 9999;
+                    idxB = idxB !== -1 ? idxB : 9999;
+                    
+                    if (idxA !== idxB) return idxA - idxB;
+                    
+                    return String(a.product).localeCompare(String(b.product), 'vi');
+                });
+                renderSOQTable(finalResults);
+            }
+        }
+        filterTable();
+    });
+    
     searchProductInput.addEventListener('input', filterTable);
 }
 
@@ -1908,11 +1935,40 @@ function renderSOQTable(data) {
 document.querySelectorAll('.sortable').forEach(th => {
     th.addEventListener('click', () => {
         let col = th.getAttribute('data-sort');
-        if (currentSort.column === col) {
-            currentSort.direction *= -1;
+        
+        if (col === 'product') {
+            currentSort.column = null;
+            currentSort.direction = 0;
         } else {
-            currentSort.column = col;
-            currentSort.direction = 1;
+            if (currentSort.column === col) {
+                if (currentSort.direction === 1) currentSort.direction = -1;
+                else if (currentSort.direction === -1) currentSort.direction = 0;
+                else currentSort.direction = 1;
+            } else {
+                currentSort.column = col;
+                currentSort.direction = 1;
+            }
+        }
+
+        document.querySelectorAll('.sort-icon').forEach(icon => icon.textContent = '');
+
+        if (currentSort.direction === 0 || col === 'product') {
+            finalResults.sort((a, b) => {
+                let sapCompare = String(a.sap).localeCompare(String(b.sap), undefined, { numeric: true });
+                if (sapCompare !== 0) return sapCompare;
+                
+                let idxA = CUSTOM_PRODUCT_ORDER.findIndex(p => p.toLowerCase() === String(a.product).trim().toLowerCase());
+                let idxB = CUSTOM_PRODUCT_ORDER.findIndex(p => p.toLowerCase() === String(b.product).trim().toLowerCase());
+                
+                idxA = idxA !== -1 ? idxA : 9999;
+                idxB = idxB !== -1 ? idxB : 9999;
+                
+                if (idxA !== idxB) return idxA - idxB;
+                
+                return String(a.product).localeCompare(String(b.product), 'vi');
+            });
+            renderSOQTable(finalResults);
+            return;
         }
 
         finalResults.sort((a, b) => {
@@ -1936,7 +1992,6 @@ document.querySelectorAll('.sortable').forEach(th => {
 
         renderSOQTable(finalResults);
 
-        document.querySelectorAll('.sort-icon').forEach(icon => icon.textContent = '');
         let targetIcon = th.querySelector('.sort-icon');
         if (targetIcon) targetIcon.textContent = currentSort.direction === 1 ? ' \u25BC' : ' \u25B2';
     });
