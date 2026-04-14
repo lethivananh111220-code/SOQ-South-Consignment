@@ -26,6 +26,56 @@ const RTE_PRODUCTS = [
     "Pure Rocket", "Cải bó xôi baby ăn liền"
 ];
 
+// Danh sách sắp xếp hiển thị mặc định (theo yêu cầu người dùng)
+const CUSTOM_PRODUCT_ORDER = [
+    "Xà lách hỗn hợp loại Baby Spring Mix 100g",
+    "Xà lách hỗn hợp loại Sweet Baby Lettuces 100g",
+    "Xà lách hỗn hợp loại Gourmet Italian Mix 100g",
+    "Xà lách hỗn hợp loại Pure Rocket 100g",
+    "Xà lách hỗn hợp loại Chopped Kale 100g",
+    "Xà lách hỗn hợp loại Asian Mix 120g",
+    "Cải bó xôi baby ăn liền 100g",
+    "Dưa leo giống nhật 450g",
+    "Cà rốt 400g",
+    "Hành tây mini 350g",
+    "Khoai tây mini 400g",
+    "Khoai tây mini 400g (Baby)",
+    "Cà chua ngọt chùm 250g",
+    "Đậu cove giống nhật 200g",
+    "Cần tây 350g",
+    "Cà rốt baby 250g",
+    "Xà lách frisée xanh ngọt 190g",
+    "Xà lách frisée tím ngọt 150g",
+    "Xà lách romaine xanh thượng hạng 170g",
+    "Xà lách romaine tím thượng hạng 130g",
+    "Xà lách hỗn hợp 200g",
+    "Cà chua Roma 400g",
+    "Cà chua Cherry ngọt 250g",
+    "Cải Kale xoăn 250g",
+    "Cải Kale khủng long 250g",
+    "Đậu ngọt 200g",
+    "Bí vua Hàn Quốc 300g up",
+    "Bông cải xanh baby 250g",
+    "Bông cải xanh 200g",
+    "Bông cải xanh (RETAIL KG)",
+    "Cải bó xôi 300g",
+    "Cải hoa hồng baby 200g",
+    "Xà lách baby thủy tinh 200g",
+    "Xà lách baby lollo 200g",
+    "Cải ngọt giống nhật 300g",
+    "Cải Kale xoăn 250g (khuyến mãi)",
+    "Cà rốt 500g (NTX)",
+    "Dưa leo giống nhật 600g (NTX)",
+    "Đậu cove giống nhật 500g (NTX)",
+    "Cần tây 600g (NTX)",
+    "Khoai tây hồng 500g (NTX)",
+    "Khoai tây vàng 500g (NTX)",
+    "Hành tây tím mini 350g",
+    "Hành tây tím 500g (NTX)",
+    "Hành tây vàng 500g (NTX)",
+    "Bí hạt dẻ (RETAIL KG)"
+];
+
 const datasets = {
     schedule: null,
     inventory: null,
@@ -1503,6 +1553,22 @@ btnCalculate.addEventListener('click', () => {
                 'tip_input': inputTooltip,
                 'tip_penalty': disposalTooltip
             });
+        });
+
+        // Sắp xếp mặc định: Theo Mã SAP, sau đó theo Tên sản phẩm tùy chỉnh
+        finalResults.sort((a, b) => {
+            let sapCompare = String(a.sap).localeCompare(String(b.sap), undefined, { numeric: true });
+            if (sapCompare !== 0) return sapCompare;
+            
+            let idxA = CUSTOM_PRODUCT_ORDER.findIndex(p => p.toLowerCase() === String(a.product).trim().toLowerCase());
+            let idxB = CUSTOM_PRODUCT_ORDER.findIndex(p => p.toLowerCase() === String(b.product).trim().toLowerCase());
+            
+            idxA = idxA !== -1 ? idxA : 9999;
+            idxB = idxB !== -1 ? idxB : 9999;
+            
+            if (idxA !== idxB) return idxA - idxB;
+            
+            return String(a.product).localeCompare(String(b.product), 'vi');
         });
 
         renderSOQTable(finalResults);
