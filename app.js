@@ -1064,6 +1064,9 @@ btnCalculate.addEventListener('click', () => {
         const monthlySales = new Map();
         const storeMonthlyDays = new Map(); // All days
         const storeGroupDays = new Map();  // storeID -> { weekdays: Set, weekends: Set }
+        const globalMonthlyDays = new Set();
+        const globalMonthlyGroupDays = { weekdays: new Set(), weekends: new Set() };
+        let globalMonthlyMaxTs = 0;
 
         const processMonthlyData = (dataArr) => {
             if (!dataArr || dataArr.length === 0) return;
@@ -1082,6 +1085,20 @@ btnCalculate.addEventListener('click', () => {
                 }
 
                 let rawDate = String(row['calendarday'] || row['date'] || row['ngay'] || '').trim();
+
+                if (rawDate) {
+                    let cbDate = parseDateStrToTime(rawDate);
+                    if (cbDate > 0) {
+                        globalMonthlyDays.add(cbDate);
+                        if (cbDate > globalMonthlyMaxTs) globalMonthlyMaxTs = cbDate;
+                        let cbDayOfWeek = new Date(cbDate).getDay();
+                        if (cbDayOfWeek === 6 || cbDayOfWeek === 0) {
+                            globalMonthlyGroupDays.weekends.add(cbDate);
+                        } else {
+                            globalMonthlyGroupDays.weekdays.add(cbDate);
+                        }
+                    }
+                }
 
                 // Đăng ký Tên/Nickname từ file Doanh số (ODA)
                 if (storeID) {
@@ -1123,13 +1140,17 @@ btnCalculate.addEventListener('click', () => {
                             prodStd,
                             totalQty: qty,
                             weekdayQty: isWknd ? 0 : qty,
-                            weekendQty: isWknd ? qty : 0
+                            weekendQty: isWknd ? qty : 0,
+                            minDateTs: cDate
                         });
                     } else {
                         let data = monthlySales.get(key);
                         data.totalQty += qty;
                         if (isWknd) data.weekendQty += qty;
                         else data.weekdayQty += qty;
+                        if (cDate > 0 && (data.minDateTs === 0 || cDate < data.minDateTs)) {
+                            data.minDateTs = cDate;
+                        }
                     }
                 }
             });
@@ -1143,6 +1164,9 @@ btnCalculate.addEventListener('click', () => {
         const weeklySales = new Map();
         const storeWeeklyDays = new Map();
         const storeWeeklyGroupDays = new Map();
+        const globalWeeklyDays = new Set();
+        const globalWeeklyGroupDays = { weekdays: new Set(), weekends: new Set() };
+        let globalWeeklyMaxTs = 0;
         if (datasets.weekly && datasets.weekly.length > 0) {
             datasets.weekly.forEach(row => {
                 // Kiểm tra xem đây là file TRANSACTION (phẳng) hay MATRIX (ngang)
@@ -1169,6 +1193,18 @@ btnCalculate.addEventListener('click', () => {
                     let rawDate = String(row['calendarday'] || row['date'] || row['ngay'] || '').trim();
                     let isWknd = false;
 
+                    if (rawDate) {
+                        let cbDate = parseDateStrToTime(rawDate);
+                        if (cbDate > 0) {
+                            globalWeeklyDays.add(cbDate);
+                            if (cbDate > globalWeeklyMaxTs) globalWeeklyMaxTs = cbDate;
+                            let cbDayOfWeek = new Date(cbDate).getDay();
+                            isWknd = (cbDayOfWeek === 6 || cbDayOfWeek === 0);
+                            if (isWknd) globalWeeklyGroupDays.weekends.add(cbDate);
+                            else globalWeeklyGroupDays.weekdays.add(cbDate);
+                        }
+                    }
+
                     if (rawDate && storeID) {
                         if (!storeWeeklyDays.has(storeID)) storeWeeklyDays.set(storeID, new Set());
                         storeWeeklyDays.get(storeID).add(rawDate);
@@ -1176,23 +1212,24 @@ btnCalculate.addEventListener('click', () => {
                         if (!storeWeeklyGroupDays.has(storeID)) {
                             storeWeeklyGroupDays.set(storeID, { weekdays: new Set(), weekends: new Set() });
                         }
-                        let cDate = parseDateStrToTime(rawDate);
-                        let dayOfWeek = new Date(cDate).getDay();
-                        isWknd = (dayOfWeek === 6 || dayOfWeek === 0);
                         if (isWknd) storeWeeklyGroupDays.get(storeID).weekends.add(rawDate);
                         else storeWeeklyGroupDays.get(storeID).weekdays.add(rawDate);
                     }
 
                     if (isNaN(qty)) return;
                     let key = `${storeID}_${prodStd.toLowerCase()}`;
+                    let cDate = parseDateStrToTime(rawDate);
 
                     if (!weeklySales.has(key)) {
-                        weeklySales.set(key, { totalQty: qty, weekdayQty: isWknd ? 0 : qty, weekendQty: isWknd ? qty : 0 });
+                        weeklySales.set(key, { totalQty: qty, weekdayQty: isWknd ? 0 : qty, weekendQty: isWknd ? qty : 0, minDateTs: cDate });
                     } else {
                         let data = weeklySales.get(key);
                         data.totalQty += qty;
                         if (isWknd) data.weekendQty += qty;
                         else data.weekdayQty += qty;
+                        if (cDate > 0 && (data.minDateTs === 0 || cDate < data.minDateTs)) {
+                            data.minDateTs = cDate;
+                        }
                     }
                 } else {
                     // --- DẠNG FILE MA TRẬN (MATRIX - Tên cửa hàng ở tiêu đề cột) ---
@@ -1314,12 +1351,25 @@ btnCalculate.addEventListener('click', () => {
         finalResults = [];
         tbody.innerHTML = '';
 
+        const countPeriodDays = (startTs, globalDaysSet) => {
+            if (startTs === 0 || !globalDaysSet || globalDaysSet.size === 0) return null;
+            let total = 0, weekdays = 0, weekends = 0;
+            globalDaysSet.forEach(ts => {
+                if (ts >= startTs) {
+                    total++;
+                    let d = new Date(ts).getDay();
+                    if (d === 0 || d === 6) weekends++;
+                    else weekdays++;
+                }
+            });
+            if (total === 0) return null;
+            return { total, weekdays, weekends };
+        };
+
         allItems.forEach((data, key) => {
-            // Chốt số ngày thực tế file doanh số bung qua THEO TỪNG CỬA HÀNG
-            let mDaysCount = storeMonthlyDays.has(data.storeID) && storeMonthlyDays.get(data.storeID).size > 0
-                ? storeMonthlyDays.get(data.storeID).size : 30;
-            let wDaysCount = storeWeeklyDays.has(data.storeID) && storeWeeklyDays.get(data.storeID).size > 0
-                ? storeWeeklyDays.get(data.storeID).size : 7;
+            // Chốt số ngày thực tế dựa trên TỔNG SỐ NGÀY GHI NHẬN CỦA TOÀN BỘ FILE (Thay vì chia theo từng cửa hàng)
+            let mDaysCount = globalMonthlyDays.size > 0 ? globalMonthlyDays.size : 30;
+            let wDaysCount = globalWeeklyDays.size > 0 ? globalWeeklyDays.size : 7;
 
             // Average Daily Sales
             let mDataExt = monthlySales.get(key);
@@ -1329,9 +1379,8 @@ btnCalculate.addEventListener('click', () => {
             let wWeekdayQty = wDataExt ? wDataExt.weekdayQty : 0;
             let wWeekendQty = wDataExt ? wDataExt.weekendQty : 0;
 
-            let wStoreGrps = storeWeeklyGroupDays.get(data.storeID);
-            let wWeekdayDaysCount = wStoreGrps ? wStoreGrps.weekdays.size : 0;
-            let wWeekendDaysCount = wStoreGrps ? wStoreGrps.weekends.size : 0;
+            let wWeekdayDaysCount = globalWeeklyGroupDays.weekdays.size > 0 ? globalWeeklyGroupDays.weekdays.size : 5;
+            let wWeekendDaysCount = globalWeeklyGroupDays.weekends.size > 0 ? globalWeeklyGroupDays.weekends.size : 2;
 
             let wWeekdayAds = wWeekdayDaysCount > 0 ? wWeekdayQty / wWeekdayDaysCount : 0;
             let wWeekendAds = wWeekendDaysCount > 0 ? wWeekendQty / wWeekendDaysCount : 0;
@@ -1339,10 +1388,27 @@ btnCalculate.addEventListener('click', () => {
             // --- NEW: Phân tích T2-T5 vs T6-CN ---
             let weekdayQty = mDataExt ? mDataExt.weekdayQty : 0;
             let weekendQty = mDataExt ? mDataExt.weekendQty : 0;
-            let storeGrps = storeGroupDays.get(data.storeID);
-            let weekdayDaysCount = storeGrps ? storeGrps.weekdays.size : 0;
-            let weekendDaysCount = storeGrps ? storeGrps.weekends.size : 0;
+            let weekdayDaysCount = globalMonthlyGroupDays.weekdays.size > 0 ? globalMonthlyGroupDays.weekdays.size : (mDaysCount * 5/7);
+            let weekendDaysCount = globalMonthlyGroupDays.weekends.size > 0 ? globalMonthlyGroupDays.weekends.size : (mDaysCount * 2/7);
 
+            // Ghi đè bằng tuổi thọ cá nhân nếu là hàng mới (Dò theo từng cửa hàng - từng sản phẩm)
+            if (mDataExt && mDataExt.minDateTs > 0) {
+                let lifeSpan = countPeriodDays(mDataExt.minDateTs, globalMonthlyDays);
+                if (lifeSpan) {
+                    mDaysCount = lifeSpan.total;
+                    weekdayDaysCount = lifeSpan.weekdays;
+                    weekendDaysCount = lifeSpan.weekends;
+                }
+            }
+
+            if (wDataExt && wDataExt.minDateTs > 0) {
+                let wLifeSpan = countPeriodDays(wDataExt.minDateTs, globalWeeklyDays);
+                if (wLifeSpan) {
+                    wDaysCount = wLifeSpan.total;
+                    wWeekdayDaysCount = wLifeSpan.weekdays;
+                    wWeekendDaysCount = wLifeSpan.weekends;
+                }
+            }
 
             let weekdayAds = weekdayDaysCount > 0 ? weekdayQty / weekdayDaysCount : 0;
             let weekendAds = weekendDaysCount > 0 ? weekendQty / weekendDaysCount : 0;
@@ -1533,8 +1599,8 @@ btnCalculate.addEventListener('click', () => {
                 'ads': forecastDay.toFixed(2),
                 'trend': trendExport,
                 'trendHtml': trendHtml,
-                'ads_weekday': wWeekdayAds.toFixed(2),
-                'ads_weekend': wWeekendAds.toFixed(2),
+                'ads_weekday': weekdayAds.toFixed(2),
+                'ads_weekend': weekendAds.toFixed(2),
                 'growth': mAds > 0 ? `${leadtimeGrowth.toFixed(1)}%` : (basePeriodDemand > 0 ? 'New' : '0%'),
                 'growthHtml': growthHtml,
                 'leadtime': coverageLT,
@@ -1545,8 +1611,11 @@ btnCalculate.addEventListener('click', () => {
                 'penalty': penaltyApplied > 0 ? `-${penaltyApplied.toFixed(2)}` : '0',
                 'soq': soq,
                 // Tooltips
-                'tip_weekday': `Tổng bán thực tế: ${wWeekdayQty.toFixed(2)} / ${wWeekdayDaysCount} ngày T2-T6 của Store`,
-                'tip_weekend': `Tổng bán thực tế: ${wWeekendQty.toFixed(2)} / ${wWeekendDaysCount} ngày T7-CN của Store`,
+                'tip_ads': `Sản lượng gốc: ${mTotal.toFixed(1)} / ${Math.round(mDaysCount)} ngày (Vòng đời sản phẩm)`,
+                'tip_trend': `Bán tuần vừa qua: ${wAds.toFixed(2)}/ngày\nBán trung bình tháng: ${mAds.toFixed(2)}/ngày\n(Tỷ lệ chênh lệch: ${trendExport})`,
+                'tip_growth': `Dự báo rải thực tế ngày giao (Khớp T2-CN): ${forecastDay.toFixed(2)}/ngày\n(Tỷ lệ tăng trưởng so với Trung bình Tháng gốc: ${mAds > 0 ? leadtimeGrowth.toFixed(1) : 0}%)`,
+                'tip_weekday': `Tính từ gốc Tháng (Lifecycle): ${weekdayQty.toFixed(2)} / ${Math.round(weekdayDaysCount)} ngày T2-T6`,
+                'tip_weekend': `Tính từ gốc Tháng (Lifecycle): ${weekendQty.toFixed(2)} / ${Math.round(weekendDaysCount)} ngày T7-CN`,
                 'tip_leadtime': `Coverage: ${coverageLT} ngày. (Chỉ tính lượng bán ra trong ${coverageLT} ngày giao hàng, không tính phần thiếu hụt trong ${leadTimeArrival.toFixed(1)} ngày chờ)`,
                 'tip_demand': breakdownTip,
                 'tip_inventory': invTooltip,
@@ -1916,11 +1985,11 @@ function renderSOQTable(data) {
             <td>${item.sap}</td>
             <td>${item.store}</td>
             <td>${item.product}</td>
-            <td>${item.ads}</td>
-            <td><b>${item.trendHtml}</b></td>
+            <td title="${item.tip_ads}">${item.ads}</td>
+            <td title="${item.tip_trend}"><b>${item.trendHtml}</b></td>
             <td title="${item.tip_weekday}">${item.ads_weekday}</td>
             <td title="${item.tip_weekend}">${item.ads_weekend}</td>
-            <td><b>${item.growthHtml}</b></td>
+            <td title="${item.tip_growth}"><b>${item.growthHtml}</b></td>
             <td><span title="${item.tip_leadtime}">${item.leadtime}</span></td>
             <td title="${item.tip_demand}">${item.demandRaw}</td>
             <td class="warning" title="${item.tip_inventory}">${item.inventory}</td>
