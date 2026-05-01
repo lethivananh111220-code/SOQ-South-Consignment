@@ -297,6 +297,14 @@ function handleFileUpload(event, type) {
                         saveToDB('template_headers', datasets.template_headers);
                         statusEl.textContent = `Đã nạp Form Mẫu (${datasets.template_headers.length} cột)`;
                         statusEl.classList.add('success');
+
+                        if (typeof firebase !== 'undefined') {
+                            firebase.database().ref('global_template').set({
+                                headers: datasets.template_headers,
+                                timestamp: Date.now()
+                            }).then(() => console.log("Đã cập nhật Form Mẫu lên Cloud."))
+                              .catch(err => console.error("Lỗi lưu Form Mẫu lên Cloud:", err));
+                        }
                     } else {
                         statusEl.textContent = `Form Mẫu trống!`;
                         statusEl.style.color = "var(--danger)";
@@ -459,6 +467,19 @@ window.addEventListener('DOMContentLoaded', async () => {
     let [cMonthly, cWeekly, cMapping, cTemplate] = await Promise.all([
         loadFromDB('monthly'), loadFromDB('weekly'), loadFromDB('mapping_raw'), loadFromDB('template_headers')
     ]);
+
+    if (typeof firebase !== 'undefined') {
+        try {
+            let snapshot = await firebase.database().ref('global_template').once('value');
+            let data = snapshot.val();
+            if (data && data.headers && data.headers.length > 0) {
+                cTemplate = data.headers;
+                saveToDB('template_headers', cTemplate);
+            }
+        } catch (err) {
+            console.error("Lỗi lấy Form Mẫu từ Cloud, dùng Local:", err);
+        }
+    }
 
     if (cTemplate && cTemplate.length > 0) {
         datasets.template_headers = cTemplate;
@@ -1827,7 +1848,8 @@ btnExport.addEventListener('click', () => {
         let qty = isHistoryView ? (item.final_order !== undefined ? item.final_order : '') : item.soq;
         
         if (qty !== '' && qty > 0) {
-             s.products[item.product] = parseNum(qty);
+             let pKey = String(item.product).trim().toLowerCase();
+             s.products[pKey] = parseNum(qty);
         }
         if (item.note && String(item.note).trim() !== '') {
              s.notes.add(String(item.note).trim());
@@ -1837,28 +1859,75 @@ btnExport.addEventListener('click', () => {
     let storeArray = Array.from(stores.values());
     storeArray.sort((a, b) => a.region.localeCompare(b.region, 'vi'));
     
-    const exportData = storeArray.map(s => {
-        let row = {};
+    let aoa = [];
+    // Dòng 1: Tiêu đề cột giữ nguyên y hệt Form xuất mẫu
+    aoa.push(datasets.template_headers);
+    
+    // Các dòng dữ liệu
+    storeArray.forEach(s => {
+        let rowData = [];
         datasets.template_headers.forEach(header => {
             let hUpper = header.trim().toUpperCase();
             if (hUpper === 'KHU VỰC' || hUpper === 'KHU VUC' || hUpper === 'REGION') {
-                row[header] = s.region;
+                rowData.push(s.region);
             } else if (hUpper === 'BUYER NAME' || hUpper.includes('BUYER')) {
-                row[header] = s.buyerName;
+                rowData.push(s.buyerName);
             } else if (hUpper === 'ORDER NOTE' || hUpper === 'GHI CHÚ' || hUpper.includes('NOTE')) {
-                row[header] = Array.from(s.notes).join(', ');
+                rowData.push(Array.from(s.notes).join(', '));
             } else if (hUpper === 'SAP' || hUpper === 'MÃ SAP') {
-                row[header] = s.sap;
+                rowData.push(s.sap);
             } else {
-                row[header] = s.products[header] !== undefined ? s.products[header] : '';
+                let hKey = header.trim().toLowerCase();
+                rowData.push(s.products[hKey] !== undefined ? s.products[hKey] : '');
             }
         });
-        return row;
+        aoa.push(rowData);
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData, { header: datasets.template_headers });
+    const worksheet = XLSX.utils.aoa_to_sheet(aoa);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "SOQ_Results");
+
+    // --- Tạo Sheet thứ 2: Raw Data (Kết Quả Dự Báo) ---
+    let rawAoa = [];
+    let rawHeaders = [
+        "Mã SAP (Store)", "Tên Cửa Hàng", "Khu Vực", "Tên Sản Phẩm", 
+        "Trung Bình Bán/Ngày", "Xu Hướng (%)", "ADS T2-T6", "ADS T7-CN", 
+        "XU HƯỚNG GIAO (%)", "Leadtime", "Total Demand", "Tồn (Inv)", 
+        "Nhập (Input)", "Giảm trừ (Penalty)", "SOQ (GỢI Ý)", "SL ĐẶT", "GHI CHÚ"
+    ];
+    rawAoa.push(rawHeaders);
+    
+    finalResults.forEach(item => {
+        let trendText = String(item.trendHtml || '').replace(/<[^>]*>?/gm, '').trim();
+        let growthText = String(item.growthHtml || '').replace(/<[^>]*>?/gm, '').trim();
+        
+        let slDat = isHistoryView ? (item.final_order !== undefined ? item.final_order : '') : item.soq;
+        let ghiChu = item.note || '';
+
+        rawAoa.push([
+            item.sap,
+            item.store,
+            item.region,
+            item.product,
+            item.ads,
+            trendText,
+            item.ads_weekday,
+            item.ads_weekend,
+            growthText,
+            item.leadtime,
+            item.demandRaw,
+            item.inventory,
+            item.input,
+            item.penalty,
+            item.soq,
+            slDat,
+            ghiChu
+        ]);
+    });
+    const rawWorksheet = XLSX.utils.aoa_to_sheet(rawAoa);
+    XLSX.utils.book_append_sheet(workbook, rawWorksheet, "Data_Chi_Tiet");
+    // ------------------------------------------------
 
     // Khử dấu tiếng Việt và ký tự lạ để tránh Browser chặn tải
     let safeName = String(scheduleFileName).normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_\-]/g, "_");
