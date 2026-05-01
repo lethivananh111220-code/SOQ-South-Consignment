@@ -254,10 +254,56 @@ button {
     top: 0;
     z-index: 10;
     box-shadow: 0 1px 0 var(--border);
+    white-space: nowrap; /* Giữ header trên 1 dòng để không bị ép nhỏ */
 }
 
+/* --- Sticky Columns for Horizontal Scroll --- */
+.data-table th:nth-child(1), .data-table td:nth-child(1) {
+    position: sticky;
+    left: 0;
+    width: 90px;
+    min-width: 90px;
+    max-width: 90px;
+    background-color: var(--bg-card);
+    z-index: 5;
+}
+.data-table th:nth-child(2), .data-table td:nth-child(2) {
+    position: sticky;
+    left: 90px;
+    width: 160px;
+    min-width: 160px;
+    max-width: 160px;
+    background-color: var(--bg-card);
+    z-index: 5;
+}
+.data-table th:nth-child(3), .data-table td:nth-child(3) {
+    position: sticky;
+    left: 250px;
+    width: 280px;
+    min-width: 280px;
+    max-width: 280px;
+    background-color: var(--bg-card);
+    z-index: 5;
+    box-shadow: 2px 0 5px -2px rgba(0,0,0,0.5); /* Shadow to separate sticky columns from scrolling content */
+}
+
+/* Ensure sticky headers stay above sticky cells */
+.data-table th:nth-child(1),
+.data-table th:nth-child(2),
+.data-table th:nth-child(3) {
+    background-color: #1a2235;
+    z-index: 15;
+}
+
+/* Maintain hover effect for sticky cells */
 .data-table tr:hover td {
     background-color: rgba(255, 255, 255, 0.02);
+}
+
+.data-table tr:hover td:nth-child(1),
+.data-table tr:hover td:nth-child(2),
+.data-table tr:hover td:nth-child(3) {
+    background-color: #243147;
 }
 
 .data-table td.highlight {

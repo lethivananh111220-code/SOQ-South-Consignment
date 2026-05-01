@@ -82,7 +82,8 @@ const datasets = {
     input: null,
     monthly: null,
     weekly: null,
-    mapping_raw: null
+    mapping_raw: null,
+    template_headers: null
 };
 
 let scheduleFileName = "SOQ_Calculated_Order"; // Tên mặc định
@@ -287,6 +288,23 @@ function handleFileUpload(event, type) {
         }
 
         try {
+            if (type === 'template') {
+                const arr = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                if (arr && arr.length > 0) {
+                    let headerRow = arr.find(row => row && row.length > 0);
+                    if (headerRow) {
+                        datasets.template_headers = headerRow.map(h => String(h).trim());
+                        saveToDB('template_headers', datasets.template_headers);
+                        statusEl.textContent = `Đã nạp Form Mẫu (${datasets.template_headers.length} cột)`;
+                        statusEl.classList.add('success');
+                    } else {
+                        statusEl.textContent = `Form Mẫu trống!`;
+                        statusEl.style.color = "var(--danger)";
+                    }
+                }
+                return;
+            }
+
             if (type === 'monthly') {
                 let allJson = [];
                 workbook.SheetNames.forEach(name => {
@@ -331,6 +349,7 @@ document.getElementById('file-input').addEventListener('change', e => handleFile
 document.getElementById('file-monthly').addEventListener('change', e => handleFileUpload(e, 'monthly'));
 document.getElementById('file-weekly').addEventListener('change', e => handleFileUpload(e, 'weekly'));
 document.getElementById('file-mapping').addEventListener('change', e => handleFileUpload(e, 'mapping'));
+document.getElementById('file-template').addEventListener('change', e => handleFileUpload(e, 'template'));
 
 // --- IndexedDB Caching cho các file cố định (Monthly, Weekly, Mapping) ---
 const DB_NAME = "SOQ_V1";
@@ -437,9 +456,15 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Tự động load lại Cache của Monthly, Weekly, Mapping File nếu có
-    let [cMonthly, cWeekly, cMapping] = await Promise.all([
-        loadFromDB('monthly'), loadFromDB('weekly'), loadFromDB('mapping_raw')
+    let [cMonthly, cWeekly, cMapping, cTemplate] = await Promise.all([
+        loadFromDB('monthly'), loadFromDB('weekly'), loadFromDB('mapping_raw'), loadFromDB('template_headers')
     ]);
+
+    if (cTemplate && cTemplate.length > 0) {
+        datasets.template_headers = cTemplate;
+        let el = document.getElementById('status-template');
+        if (el) { el.textContent = `Đã nạp Form Mẫu (${cTemplate.length} cột)`; el.classList.add('success'); }
+    }
 
     if (cMonthly) {
         if (cMonthly.invalidated) {
@@ -479,6 +504,7 @@ function checkReady() {
 }
 
 let finalResults = [];
+let isHistoryView = false;
 
 function extractSAP(str) {
     if (!str) return "";
@@ -626,6 +652,7 @@ btnCalculate.addEventListener('click', () => {
         // --- 2. Schedule Filter & Store Names ---
         const validSAPs = new Set();
         const storeNamesMap = new Map();
+        const storeRegionMap = new Map();
         const storeAliasesMap = new Map(); // ID -> Set of normalized names/nicknames
         const scheduleLeadtimeMap = new Map();
         const storeTierMap = new Map();
@@ -636,6 +663,8 @@ btnCalculate.addEventListener('click', () => {
                 if (!store) return;
 
                 let storeID = extractSAP(store);
+                let region = String(row['khuvuc'] || row['khuvực'] || row['region'] || 'Khác').trim();
+                storeRegionMap.set(storeID, region);
                 let hinhThuc = String(row['hinhthuc'] || row['Hình thức'] || row['type'] || '').toUpperCase();
 
                 let dynamicLT = 0;
@@ -1595,6 +1624,7 @@ btnCalculate.addEventListener('click', () => {
             finalResults.push({
                 'sap': data.storeID,
                 'store': storeNameStr,
+                'region': storeRegionMap.get(data.storeID) || 'Khác',
                 'product': data.bestName,
                 'ads': forecastDay.toFixed(2),
                 'trend': trendExport,
@@ -1641,6 +1671,7 @@ btnCalculate.addEventListener('click', () => {
         });
 
         renderSOQTable(finalResults);
+        populateRegionDropdown();
 
         if (finalResults.length === 0) {
             let monthlyKeys = (datasets.monthly && datasets.monthly.length > 0) ? Object.keys(datasets.monthly[0]).join(', ') : 'No data';
@@ -1700,27 +1731,132 @@ btnCalculate.addEventListener('click', () => {
     }
 });
 
+// Tính năng lưu lịch sử
+const btnSaveChanges = document.getElementById('btn-save-changes');
+if (btnSaveChanges) {
+    btnSaveChanges.addEventListener('click', () => {
+        // Kiểm tra logic nhập thiếu theo từng cửa hàng
+        let storeData = {};
+        finalResults.forEach(item => {
+            if (!storeData[item.sap]) {
+                storeData[item.sap] = { filled: 0, empty: 0, name: item.store };
+            }
+            if (item.final_order !== undefined && item.final_order !== '') {
+                storeData[item.sap].filled++;
+            } else {
+                storeData[item.sap].empty++;
+            }
+        });
+
+        let missingStores = [];
+        for (let sap in storeData) {
+            let s = storeData[sap];
+            // Nếu cửa hàng có ít nhất 1 sản phẩm được nhập, nhưng vẫn còn sản phẩm bị bỏ trống
+            if (s.filled > 0 && s.empty > 0) {
+                missingStores.push(`${s.name} (thiếu ${s.empty} mã)`);
+            }
+        }
+        
+        if (missingStores.length > 0) {
+            let confirmSave = confirm(`⚠️ CẢNH BÁO:\nCó cửa hàng đã nhập "SL ĐẶT" nhưng chưa nhập đủ toàn bộ các mã sản phẩm:\n- ${missingStores.join('\n- ')}\n\nBạn có chắc chắn muốn lưu lại không?`);
+            if (!confirmSave) return;
+        }
+
+        if (typeof firebase !== 'undefined') {
+            btnSaveChanges.innerHTML = "⏳ Đang lưu...";
+            let userName = inputUserName ? inputUserName.value.trim() : "Hệ thống";
+            if (!userName) userName = "Ẩn danh";
+            const now = new Date();
+            const dateStr = now.toISOString().split('T')[0];
+
+            const payload = {
+                results: finalResults,
+                filename: scheduleFileName,
+                timestamp: now.getTime(),
+                dateStr: dateStr,
+                userName: userName
+            };
+
+            firebase.database().ref('latest_soq').set(payload)
+                .then(() => {
+                    btnSaveChanges.innerHTML = "✔️ Đã lưu";
+                    setTimeout(() => { btnSaveChanges.innerHTML = "💾 Lưu Thay Đổi"; }, 2000);
+                    // Cập nhật local array cho đồng bộ
+                    saveToDB('soq_latest_array', finalResults);
+                })
+                .catch(err => {
+                    console.error("Lỗi lưu Cloud:", err);
+                    alert("Lỗi khi lưu lên Cloud!");
+                    btnSaveChanges.innerHTML = "💾 Lưu Thay Đổi";
+                });
+        } else {
+            alert("Lỗi: Firebase chưa được khởi tạo.");
+        }
+    });
+}
+
 // Export to Excel (Bypass Security Block for local file:///)
 btnExport.addEventListener('click', () => {
-    // Map lại keys sang Tiếng Việt chuyên nghiệp để xuất Excel
-    const exportData = finalResults.map(item => ({
-        'Mã SAP (Store)': item.sap,
-        'Tên Cửa Hàng': item.store,
-        'Tên Sản Phẩm': item.product,
-        'Trung Bình Bán/Ngày': item.ads,
-        'Xu Hướng Bán (%)': item.trend,
-        'ADS T2-T6': item.ads_weekday,
-        'ADS T7-CN': item.ads_weekend,
-        'Tăng trưởng theo leadtime (%)': item.growth,
-        'Leadtime': item.leadtime,
-        'Total Demand': item.demand,
-        'Tồn (Inv)': item.inventory,
-        'Nhập (Input)': item.input,
-        'Giảm trừ (Penalty)': item.penalty,
-        'SOQ': item.soq
-    }));
+    if (!datasets.template_headers || datasets.template_headers.length === 0) {
+        alert("Vui lòng tải lên 'Form Xuất Mẫu' ở mục 6 (Cấu hình) trước khi xuất Excel để đảm bảo đúng định dạng!");
+        return;
+    }
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const parseNum = (val) => {
+        if (val === undefined || val === null || val === '') return '';
+        if (typeof val === 'number') return val;
+        let str = String(val).trim();
+        if (str.includes('%')) return str;
+        let num = Number(str);
+        if (!isNaN(num)) return num;
+        return str;
+    };
+
+    let stores = new Map();
+    finalResults.forEach(item => {
+        if (!stores.has(item.sap)) {
+            stores.set(item.sap, {
+                region: item.region || 'Khác',
+                buyerName: item.store || '',
+                sap: item.sap || '',
+                notes: new Set(),
+                products: {}
+            });
+        }
+        let s = stores.get(item.sap);
+        let qty = isHistoryView ? (item.final_order !== undefined ? item.final_order : '') : item.soq;
+        
+        if (qty !== '' && qty > 0) {
+             s.products[item.product] = parseNum(qty);
+        }
+        if (item.note && String(item.note).trim() !== '') {
+             s.notes.add(String(item.note).trim());
+        }
+    });
+    
+    let storeArray = Array.from(stores.values());
+    storeArray.sort((a, b) => a.region.localeCompare(b.region, 'vi'));
+    
+    const exportData = storeArray.map(s => {
+        let row = {};
+        datasets.template_headers.forEach(header => {
+            let hUpper = header.trim().toUpperCase();
+            if (hUpper === 'KHU VỰC' || hUpper === 'KHU VUC' || hUpper === 'REGION') {
+                row[header] = s.region;
+            } else if (hUpper === 'BUYER NAME' || hUpper.includes('BUYER')) {
+                row[header] = s.buyerName;
+            } else if (hUpper === 'ORDER NOTE' || hUpper === 'GHI CHÚ' || hUpper.includes('NOTE')) {
+                row[header] = Array.from(s.notes).join(', ');
+            } else if (hUpper === 'SAP' || hUpper === 'MÃ SAP') {
+                row[header] = s.sap;
+            } else {
+                row[header] = s.products[header] !== undefined ? s.products[header] : '';
+            }
+        });
+        return row;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData, { header: datasets.template_headers });
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "SOQ_Results");
 
@@ -1757,11 +1893,34 @@ btnExport.addEventListener('click', () => {
 // --- BỘ LỌC TÌM KIẾM ---
 const searchStoreInput = document.getElementById('search-store');
 const searchProductInput = document.getElementById('search-product');
+const filterRegionSelect = document.getElementById('filter-region');
+
+function populateRegionDropdown() {
+    if (!filterRegionSelect) return;
+    while (filterRegionSelect.options.length > 1) {
+        filterRegionSelect.remove(1);
+    }
+    const regions = new Set();
+    finalResults.forEach(item => {
+        if (item.region && item.region !== 'Khác') regions.add(item.region);
+    });
+    let sortedRegions = Array.from(regions).sort();
+    let hasKhac = finalResults.some(item => !item.region || item.region === 'Khác');
+    if (hasKhac) sortedRegions.push('Khác');
+    
+    sortedRegions.forEach(r => {
+        let opt = document.createElement('option');
+        opt.value = r;
+        opt.text = r;
+        filterRegionSelect.appendChild(opt);
+    });
+}
 
 function filterTable() {
     if (!searchStoreInput || !searchProductInput) return;
     const storeQuery = searchStoreInput.value.toLowerCase();
     const productQuery = searchProductInput.value.toLowerCase();
+    const regionQuery = filterRegionSelect ? filterRegionSelect.value : "";
     const rows = document.querySelectorAll('#soq-tbody tr');
 
     rows.forEach(row => {
@@ -1769,16 +1928,22 @@ function filterTable() {
         const sap = row.cells[0].textContent.toLowerCase();
         const storeName = row.cells[1].textContent.toLowerCase();
         const productName = row.cells[2].textContent.toLowerCase();
+        const region = row.getAttribute('data-region') || 'Khác';
 
         const matchStore = sap.includes(storeQuery) || storeName.includes(storeQuery);
         const matchProduct = productName.includes(productQuery);
+        const matchRegion = regionQuery === "" || region === regionQuery;
 
-        if (matchStore && matchProduct) {
+        if (matchStore && matchProduct && matchRegion) {
             row.style.display = '';
         } else {
             row.style.display = 'none';
         }
     });
+}
+
+if (filterRegionSelect) {
+    filterRegionSelect.addEventListener('change', filterTable);
 }
 
 if (searchStoreInput && searchProductInput) {
@@ -1805,6 +1970,7 @@ if (searchStoreInput && searchProductInput) {
                     return String(a.product).localeCompare(String(b.product), 'vi');
                 });
                 renderSOQTable(finalResults);
+        populateRegionDropdown();
             }
         }
         filterTable();
@@ -1839,9 +2005,13 @@ if (navHistory && navDashboard) {
         e.preventDefault();
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         navHistory.classList.add('active');
+        isHistoryView = true;
         
         // Ẩn khu vực tải file
         document.querySelector('.upload-section').style.display = 'none';
+        document.querySelectorAll('.history-col').forEach(c => c.style.display = 'table-cell');
+        let btnSave = document.getElementById('btn-save-changes');
+        if (btnSave) btnSave.style.display = 'inline-block';
         
         let tbody = document.getElementById('soq-tbody');
         let titleSpan = document.querySelector('.results-section h2');
@@ -1862,6 +2032,7 @@ if (navHistory && navDashboard) {
                     // Render bảng từ Array
                     finalResults = prepHistoricalData(data.results);
                     renderSOQTable(finalResults);
+        populateRegionDropdown();
                     btnExport.style.display = 'inline-block';
 
                     let timeStr = new Date(data.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -1922,6 +2093,7 @@ if (navHistory && navDashboard) {
             // Clean undefineds to avoid "undefined" strings
             item.sap = item.sap || '';
             item.store = item.store || '';
+            item.region = item.region || 'Khác';
             item.product = item.product || '';
             item.ads = item.ads || '0.00';
             item.ads_weekday = item.ads_weekday || '0.00';
@@ -1943,7 +2115,8 @@ if (navHistory && navDashboard) {
 
         if (histArr && !histArr.invalidated) {
             finalResults = prepHistoricalData(histArr);
-            renderSOQTable(finalResults); // Render lại từ mảng để áp dụng Style mới nhất
+            renderSOQTable(finalResults);
+        populateRegionDropdown(); // Render lại từ mảng để áp dụng Style mới nhất
             if (histName && !histName.invalidated) scheduleFileName = histName;
             btnExport.style.display = 'inline-block';
             titleSpan.innerHTML = `Kết Quả Dự Báo <span style="font-size: 0.6em; background: rgba(255,152,0,0.2); color: #ff9800; border: 1px solid #ff9800; padding: 4px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">Local: Bản lưu máy bạn</span>`;
@@ -1958,9 +2131,13 @@ if (navHistory && navDashboard) {
         e.preventDefault();
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         navDashboard.classList.add('active');
+        isHistoryView = false;
         
         // Hiện lại khu vực Tải file
         document.querySelector('.upload-section').style.display = 'block';
+        document.querySelectorAll('.history-col').forEach(c => c.style.display = 'none');
+        let btnSave = document.getElementById('btn-save-changes');
+        if (btnSave) btnSave.style.display = 'none';
         
         let titleSpan = document.querySelector('.results-section h2');
         if (titleSpan && titleSpan.querySelector('span')) { 
@@ -1979,8 +2156,19 @@ let currentSort = { column: null, direction: 1 };
 function renderSOQTable(data) {
     const tbody = document.getElementById('soq-tbody');
     tbody.innerHTML = ``;
-    data.forEach(item => {
+    data.forEach((item, index) => {
         let tr = document.createElement('tr');
+        tr.setAttribute('data-region', item.region || 'Khác');
+        
+        let finalOrderTd = '';
+        let noteTd = '';
+        if (isHistoryView) {
+            let finalVal = item.final_order !== undefined ? item.final_order : '';
+            finalOrderTd = `<td><input type="number" class="final-order-input" data-index="${index}" value="${finalVal}" style="width: 80px; padding: 6px; text-align: center; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; background: #fff; color: #333;" placeholder="-" min="0"></td>`;
+            let noteVal = item.note !== undefined ? item.note : '';
+            noteTd = `<td><input type="text" class="note-input" data-index="${index}" value="${noteVal}" style="width: 150px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #333;" placeholder="Ghi chú..."></td>`;
+        }
+
         tr.innerHTML = `
             <td>${item.sap}</td>
             <td>${item.store}</td>
@@ -1996,9 +2184,34 @@ function renderSOQTable(data) {
             <td class="highlight" title="${item.tip_input}">${item.input}</td>
             <td style="color:${item.penalty !== '0' ? 'var(--danger)' : ''}" title="${item.tip_penalty}">${item.penalty}</td>
             <td class="highlight">${item.soq}</td>
+            ${finalOrderTd}
+            ${noteTd}
         `;
         tbody.appendChild(tr);
     });
+
+    if (isHistoryView) {
+        document.querySelectorAll('.final-order-input').forEach(input => {
+            input.addEventListener('input', (e) => {
+                let idx = e.target.getAttribute('data-index');
+                if (data === finalResults) {
+                    finalResults[idx].final_order = e.target.value;
+                } else {
+                    data[idx].final_order = e.target.value;
+                }
+            });
+        });
+        document.querySelectorAll('.note-input').forEach(input => {
+            input.addEventListener('input', (e) => {
+                let idx = e.target.getAttribute('data-index');
+                if (data === finalResults) {
+                    finalResults[idx].note = e.target.value;
+                } else {
+                    data[idx].note = e.target.value;
+                }
+            });
+        });
+    }
 }
 
 document.querySelectorAll('.sortable').forEach(th => {
