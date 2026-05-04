@@ -1632,10 +1632,10 @@ btnCalculate.addEventListener('click', () => {
             soq = Math.max(Math.ceil(soq), 0);
 
             // HIỂN THỊ ĐẦY ĐỦ SOQ NẾU CÓ BẤT KỲ Ý NGHĨA KINH DOANH NÀO
-            // Ẩn dòng có TẤT CẢ = 0
-            if (soq === 0 && totalDemand === 0 && finalInv === 0 && finalInput === 0 && finalDisp === 0) {
-                return;
-            }
+            // Ẩn dòng có TẤT CẢ = 0 (Đã comment lại theo yêu cầu để show đủ 46 mã)
+            // if (soq === 0 && totalDemand === 0 && finalInv === 0 && finalInput === 0 && finalDisp === 0) {
+            //     return;
+            // }
 
             let storeNameStr = storeNamesMap.get(data.storeID) || data.storeOrig;
 
@@ -1798,18 +1798,55 @@ if (btnSaveChanges) {
                 userName: userName
             };
 
-            firebase.database().ref('latest_soq').set(payload)
-                .then(() => {
+            firebase.database().ref('latest_soq').transaction((currentData) => {
+                if (currentData && currentData.dateStr === dateStr && currentData.filename === scheduleFileName) {
+                    let cloudMap = {};
+                    if (currentData.results) {
+                        currentData.results.forEach(r => {
+                            cloudMap[r.sap + '_' + r.product] = r;
+                        });
+                    }
+
+                    finalResults.forEach(localItem => {
+                        if (localItem.is_dirty) {
+                            let key = localItem.sap + '_' + localItem.product;
+                            if (cloudMap[key]) {
+                                cloudMap[key].final_order = localItem.final_order;
+                                cloudMap[key].note = localItem.note;
+                            } else {
+                                if (!currentData.results) currentData.results = [];
+                                currentData.results.push(localItem);
+                            }
+                        }
+                    });
+
+                    currentData.timestamp = now.getTime();
+                    currentData.userName = userName; 
+                    return currentData;
+                }
+                
+                let newPayload = JSON.parse(JSON.stringify(payload));
+                newPayload.results.forEach(r => delete r.is_dirty);
+                return newPayload;
+            }).then((result) => {
+                if (result.committed) {
+                    if (result.snapshot.val() && result.snapshot.val().results) {
+                        finalResults = result.snapshot.val().results;
+                    }
+                    finalResults.forEach(r => delete r.is_dirty);
+                    
                     btnSaveChanges.innerHTML = "✔️ Đã lưu";
                     setTimeout(() => { btnSaveChanges.innerHTML = "💾 Lưu Thay Đổi"; }, 2000);
-                    // Cập nhật local array cho đồng bộ
                     saveToDB('soq_latest_array', finalResults);
-                })
-                .catch(err => {
-                    console.error("Lỗi lưu Cloud:", err);
-                    alert("Lỗi khi lưu lên Cloud!");
-                    btnSaveChanges.innerHTML = "💾 Lưu Thay Đổi";
-                });
+                    
+                    renderSOQTable(finalResults);
+                    populateRegionDropdown();
+                }
+            }).catch(err => {
+                console.error("Lỗi lưu Cloud:", err);
+                alert("Lỗi khi lưu lên Cloud!");
+                btnSaveChanges.innerHTML = "💾 Lưu Thay Đổi";
+            });
         } else {
             alert("Lỗi: Firebase chưa được khởi tạo.");
         }
@@ -2265,8 +2302,10 @@ function renderSOQTable(data) {
                 let idx = e.target.getAttribute('data-index');
                 if (data === finalResults) {
                     finalResults[idx].final_order = e.target.value;
+                    finalResults[idx].is_dirty = true;
                 } else {
                     data[idx].final_order = e.target.value;
+                    data[idx].is_dirty = true;
                 }
             });
         });
@@ -2275,8 +2314,10 @@ function renderSOQTable(data) {
                 let idx = e.target.getAttribute('data-index');
                 if (data === finalResults) {
                     finalResults[idx].note = e.target.value;
+                    finalResults[idx].is_dirty = true;
                 } else {
                     data[idx].note = e.target.value;
+                    data[idx].is_dirty = true;
                 }
             });
         });
@@ -2346,4 +2387,11 @@ document.querySelectorAll('.sortable').forEach(th => {
         let targetIcon = th.querySelector('.sort-icon');
         if (targetIcon) targetIcon.textContent = currentSort.direction === 1 ? ' \u25BC' : ' \u25B2';
     });
+});
+
+// Ngăn lỗi cuộn chuột làm thay đổi số trong thẻ input type="number"
+document.addEventListener('wheel', function(event) {
+    if (document.activeElement.type === 'number') {
+        document.activeElement.blur();
+    }
 });
