@@ -1799,41 +1799,69 @@ if (btnSaveChanges) {
             };
 
             firebase.database().ref('latest_soq').transaction((currentData) => {
-                if (currentData && currentData.dateStr === dateStr && currentData.filename === scheduleFileName) {
-                    let cloudMap = {};
-                    if (currentData.results) {
-                        currentData.results.forEach(r => {
-                            cloudMap[r.sap + '_' + r.product] = r;
-                        });
-                    }
-
-                    finalResults.forEach(localItem => {
-                        if (localItem.is_dirty) {
-                            let key = localItem.sap + '_' + localItem.product;
-                            if (cloudMap[key]) {
-                                cloudMap[key].final_order = localItem.final_order;
-                                cloudMap[key].note = localItem.note;
-                            } else {
-                                if (!currentData.results) currentData.results = [];
-                                currentData.results.push(localItem);
-                            }
+                try {
+                    if (currentData && currentData.dateStr === dateStr && currentData.filename === scheduleFileName) {
+                        let cloudMap = {};
+                        if (currentData.results) {
+                            let resultsArr = Array.isArray(currentData.results) ? currentData.results : Object.values(currentData.results);
+                            resultsArr.forEach(r => {
+                                if (r) cloudMap[r.sap + '_' + r.product] = r;
+                            });
                         }
-                    });
 
-                    currentData.timestamp = now.getTime();
-                    currentData.userName = userName; 
-                    return currentData;
+                        let modified = false;
+                        finalResults.forEach(localItem => {
+                            if (localItem.is_dirty) {
+                                modified = true;
+                                let key = localItem.sap + '_' + localItem.product;
+                                if (cloudMap[key]) {
+                                    cloudMap[key].final_order = localItem.final_order;
+                                    cloudMap[key].note = localItem.note;
+                                } else {
+                                    if (!currentData.results) currentData.results = [];
+                                    if (Array.isArray(currentData.results)) {
+                                        currentData.results.push(localItem);
+                                    } else {
+                                        let maxKey = Math.max(-1, ...Object.keys(currentData.results).map(Number).filter(n => !isNaN(n)));
+                                        currentData.results[maxKey + 1] = localItem;
+                                    }
+                                }
+                            }
+                        });
+
+                        if (!modified) {
+                            // Cố tình sửa 1 trường nhỏ để Firebase bắt buộc nhận diện có thay đổi (force commit)
+                            currentData.lastActive = now.getTime();
+                        }
+
+                        currentData.timestamp = now.getTime();
+                        currentData.userName = userName; 
+                        return currentData;
+                    }
+                    
+                    let newPayload = JSON.parse(JSON.stringify(payload));
+                    if (Array.isArray(newPayload.results)) {
+                        newPayload.results.forEach(r => { if(r) delete r.is_dirty; });
+                    }
+                    return newPayload;
+                } catch (e) {
+                    console.error("Lỗi bên trong transaction: ", e);
+                    return; // Hủy transaction
                 }
-                
-                let newPayload = JSON.parse(JSON.stringify(payload));
-                newPayload.results.forEach(r => delete r.is_dirty);
-                return newPayload;
             }).then((result) => {
                 if (result.committed) {
-                    if (result.snapshot.val() && result.snapshot.val().results) {
-                        finalResults = result.snapshot.val().results;
+                    let snapshotVal = result.snapshot.val();
+                    if (snapshotVal && snapshotVal.results) {
+                        let cloudRes = snapshotVal.results;
+                        if (Array.isArray(cloudRes)) {
+                            finalResults = cloudRes;
+                        } else {
+                            finalResults = Object.values(cloudRes);
+                        }
                     }
-                    finalResults.forEach(r => delete r.is_dirty);
+                    if (Array.isArray(finalResults)) {
+                        finalResults.forEach(r => { if(r) delete r.is_dirty; });
+                    }
                     
                     btnSaveChanges.innerHTML = "✔️ Đã lưu";
                     setTimeout(() => { btnSaveChanges.innerHTML = "💾 Lưu Thay Đổi"; }, 2000);
@@ -1841,10 +1869,16 @@ if (btnSaveChanges) {
                     
                     renderSOQTable(finalResults);
                     populateRegionDropdown();
+                } else {
+                    if (Array.isArray(finalResults)) {
+                        finalResults.forEach(r => { if(r) delete r.is_dirty; });
+                    }
+                    btnSaveChanges.innerHTML = "✔️ Đã lưu (Không đổi)";
+                    setTimeout(() => { btnSaveChanges.innerHTML = "💾 Lưu Thay Đổi"; }, 2000);
                 }
             }).catch(err => {
                 console.error("Lỗi lưu Cloud:", err);
-                alert("Lỗi khi lưu lên Cloud!");
+                alert("Lỗi khi lưu lên Cloud: " + err.message);
                 btnSaveChanges.innerHTML = "💾 Lưu Thay Đổi";
             });
         } else {
