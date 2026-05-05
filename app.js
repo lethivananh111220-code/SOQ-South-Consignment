@@ -1828,11 +1828,16 @@ if (btnSaveChanges) {
                                     cloudMap[key].note = localItem.note;
                                 } else {
                                     if (!currentData.results) currentData.results = [];
+                                    
+                                    // Clone to avoid mutating original and remove is_dirty
+                                    let cleanItem = JSON.parse(JSON.stringify(localItem));
+                                    delete cleanItem.is_dirty;
+
                                     if (Array.isArray(currentData.results)) {
-                                        currentData.results.push(localItem);
+                                        currentData.results.push(cleanItem);
                                     } else {
                                         let maxKey = Math.max(-1, ...Object.keys(currentData.results).map(Number).filter(n => !isNaN(n)));
-                                        currentData.results[maxKey + 1] = localItem;
+                                        currentData.results[maxKey + 1] = cleanItem;
                                     }
                                 }
                             }
@@ -1845,7 +1850,9 @@ if (btnSaveChanges) {
 
                         currentData.timestamp = now.getTime();
                         currentData.userName = userName; 
-                        return currentData;
+                        
+                        // Sanitize before returning to prevent Firebase SDK crash due to undefined properties
+                        return JSON.parse(JSON.stringify(currentData));
                     }
                     
                     let newPayload = JSON.parse(JSON.stringify(payload));
