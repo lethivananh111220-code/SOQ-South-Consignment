@@ -1122,7 +1122,7 @@ btnCalculate.addEventListener('click', () => {
             if (!dataArr || dataArr.length === 0) return;
             dataArr.forEach(row => {
                 let st = row['sap'] || row['storecode'] || row['sapcode'] || row['store'] || row['nickname'] || row['storename'] || row['tencuahang'];
-                let pr = row['tnsnphmwm'] || row['tensanphamwm'] || row['tnsnphm'] || row['articlename'] || row['article'] || row['tensanpham'] || row['productname'];
+                let pr = row['tnsnphmwm'] || row['tensanphamwm'] || row['tnsnphm'] || row['tensanpham'] || row['productname'] || row['articlename'] || row['article'];
                 let qty = Number(String(row['posquantity'] || row['quantity'] || row['soluong'] || row['sum'] || '0').replace(/,/g, ''));
                 if (pr && String(pr).toLowerCase().includes('retail kg')) qty /= 1000;
 
@@ -1191,14 +1191,14 @@ btnCalculate.addEventListener('click', () => {
                             totalQty: qty,
                             weekdayQty: isWknd ? 0 : qty,
                             weekendQty: isWknd ? qty : 0,
-                            minDateTs: cDate
+                            minDateTs: qty > 0 ? cDate : 0
                         });
                     } else {
                         let data = monthlySales.get(key);
                         data.totalQty += qty;
                         if (isWknd) data.weekendQty += qty;
                         else data.weekdayQty += qty;
-                        if (cDate > 0 && (data.minDateTs === 0 || cDate < data.minDateTs)) {
+                        if (qty > 0 && cDate > 0 && (data.minDateTs === 0 || cDate < data.minDateTs)) {
                             data.minDateTs = cDate;
                         }
                     }
@@ -1271,13 +1271,13 @@ btnCalculate.addEventListener('click', () => {
                     let cDate = parseDateStrToTime(rawDate);
 
                     if (!weeklySales.has(key)) {
-                        weeklySales.set(key, { totalQty: qty, weekdayQty: isWknd ? 0 : qty, weekendQty: isWknd ? qty : 0, minDateTs: cDate });
+                        weeklySales.set(key, { totalQty: qty, weekdayQty: isWknd ? 0 : qty, weekendQty: isWknd ? qty : 0, minDateTs: qty > 0 ? cDate : 0 });
                     } else {
                         let data = weeklySales.get(key);
                         data.totalQty += qty;
                         if (isWknd) data.weekendQty += qty;
                         else data.weekdayQty += qty;
-                        if (cDate > 0 && (data.minDateTs === 0 || cDate < data.minDateTs)) {
+                        if (qty > 0 && cDate > 0 && (data.minDateTs === 0 || cDate < data.minDateTs)) {
                             data.minDateTs = cDate;
                         }
                     }
@@ -1498,6 +1498,13 @@ btnCalculate.addEventListener('click', () => {
 
             // SỐ TRUNG BÌNH BÁN NGÀY HOÀN TOÀN DỰA VÀO THÁNG
             let forecastDay = mAds;
+            
+            if (mTotal === 0 && wTotal > 0) {
+                // Hàng siêu mới chỉ có trong tuần
+                forecastDay = wAds;
+                weekdayAds = wWeekdayAds;
+                weekendAds = wWeekendAds;
+            }
 
             // --- TÍNH TOÁN LEAD TIME TỔNG CỘNG ---
             // 1. Lead Time Arrival: Từ ngày T (Master Date) đến ngày Giao hàng (Target Delivery)
@@ -1662,7 +1669,9 @@ btnCalculate.addEventListener('click', () => {
                 'penalty': penaltyApplied > 0 ? `-${penaltyApplied.toFixed(2)}` : '0',
                 'soq': soq,
                 // Tooltips
-                'tip_ads': `Sản lượng gốc: ${mTotal.toFixed(1)} / ${Math.round(mDaysCount)} ngày (Vòng đời sản phẩm)`,
+                'tip_ads': (mTotal === 0 && wTotal > 0) 
+                           ? `[MÃ MỚI TỪ FILE TUẦN] Sản lượng: ${wTotal.toFixed(1)} / ${Math.round(wDaysCount)} ngày (Vòng đời)\n=> Trung bình: ${forecastDay.toFixed(2)} SP/ngày` 
+                           : `Sản lượng gốc: ${mTotal.toFixed(1)} / ${Math.round(mDaysCount)} ngày (Vòng đời)\n=> Trung bình: ${forecastDay.toFixed(2)} SP/ngày`,
                 'tip_trend': `Bán tuần vừa qua: ${wAds.toFixed(2)}/ngày\nBán trung bình tháng: ${mAds.toFixed(2)}/ngày\n(Tỷ lệ chênh lệch: ${trendExport})`,
                 'tip_growth': `Dự báo rải thực tế ngày giao (Khớp T2-CN): ${forecastDay.toFixed(2)}/ngày\n(Tỷ lệ tăng trưởng so với Trung bình Tháng gốc: ${mAds > 0 ? leadtimeGrowth.toFixed(1) : 0}%)`,
                 'tip_weekday': `Tính từ gốc Tháng (Lifecycle): ${weekdayQty.toFixed(2)} / ${Math.round(weekdayDaysCount)} ngày T2-T6`,
