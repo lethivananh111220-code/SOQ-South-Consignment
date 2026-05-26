@@ -83,10 +83,267 @@ const datasets = {
     monthly: null,
     weekly: null,
     mapping_raw: null,
-    template_headers: null
+    template_headers: null,
+    trend_report: null
 };
 
 let scheduleFileName = "SOQ_Calculated_Order"; // Tên mặc định
+
+let productWeightMap = new Map();
+let globalStoreRegionMap = new Map();
+let globalStoreNamesMap = new Map();
+let globalStoreAliasesMap = new Map();
+let globalReverseStoreNamesMap = new Map();
+let globalMappingMap = new Map();
+let globalStandardNamesSet = new Set();
+let currentWeeklyReviewList = [];
+let currentWeeklyFilteredList = [];
+
+function buildMetadataMaps() {
+    globalStoreRegionMap.clear();
+    globalStoreNamesMap.clear();
+    globalStoreAliasesMap.clear();
+    globalReverseStoreNamesMap.clear();
+    globalMappingMap.clear();
+    globalStandardNamesSet.clear();
+    
+    if (datasets.mapping_raw && datasets.mapping_raw.length > 0) {
+        let headerRow = datasets.mapping_raw[0] || [];
+        let iOda = 1, iWm = 2;
+        for (let c = 0; c < headerRow.length; c++) {
+            let h = String(headerRow[c]).toUpperCase();
+            if (h.includes('ODA')) iOda = c;
+            else if (h.includes('WM')) iWm = c;
+        }
+        for (let i = 1; i < datasets.mapping_raw.length; i++) {
+            let r = datasets.mapping_raw[i];
+            if (!r || !Array.isArray(r)) continue;
+            let odaName = r[iOda] ? String(r[iOda]).trim() : '';
+            let wmName = r[iWm] ? String(r[iWm]).trim().toLowerCase() : '';
+            if (!odaName && !wmName && r.length >= 2) {
+                wmName = r[0] ? String(r[0]).trim().toLowerCase() : '';
+                odaName = r[1] ? String(r[1]).trim() : '';
+            }
+            if (wmName && odaName) {
+                globalMappingMap.set(wmName, odaName);
+                globalStandardNamesSet.add(odaName.trim().toLowerCase());
+            }
+        }
+    }
+    
+    if (datasets.schedule && datasets.schedule.length > 0) {
+        datasets.schedule.forEach(row => {
+            let store = row['sap'] || row['storekey'] || row['storecode'] || row['makho'] || row['mach'] || row['mãkháchhàng'] || row['mãcửahàng'] || row['nickname'] || row['storename'] || row['store'];
+            if (!store) return;
+            let storeID = extractSAP(store);
+            let region = String(row['khuvuc'] || row['khuvực'] || row['region'] || 'Khác').trim();
+            globalStoreRegionMap.set(storeID, region);
+            let sName = row['tencuahang'] || row['tncahng'] || row['storename'] || row['store'] || row['nickname'] || '';
+            let nickname = row['nickname'] || '';
+            if (sName) globalStoreNamesMap.set(storeID, String(sName).trim());
+            if (!globalStoreAliasesMap.has(storeID)) globalStoreAliasesMap.set(storeID, new Set());
+            if (sName) globalStoreAliasesMap.get(storeID).add(normalizeKey(sName));
+            if (nickname) globalStoreAliasesMap.get(storeID).add(normalizeKey(nickname));
+            globalStoreAliasesMap.get(storeID).add(normalizeKey(storeID));
+        });
+        globalStoreAliasesMap.forEach((aliases, id) => {
+            aliases.forEach(alias => {
+                globalReverseStoreNamesMap.set(alias, id);
+            });
+        });
+        globalStoreNamesMap.forEach((name, id) => {
+            globalReverseStoreNamesMap.set(normalizeKey(name), id);
+            globalReverseStoreNamesMap.set(id, id);
+        });
+    }
+}
+
+function buildProductWeightMap() {
+    productWeightMap.clear();
+    if (!datasets.mapping_raw || datasets.mapping_raw.length === 0) return;
+    let headerRow = datasets.mapping_raw[0] || [];
+    let iOda = 1;
+    let iWeight = -1;
+    for (let c = 0; c < headerRow.length; c++) {
+        let h = String(headerRow[c]).toUpperCase();
+        if (h.includes('ODA')) iOda = c;
+        if (h.includes('KHỐI LƯỢNG') || h.includes('KHOI LUONG') || h.includes('WEIGHT') || h.includes('TỊNH') || h.includes('GRAM')) {
+            iWeight = c;
+        }
+    }
+    if (iWeight === -1 && headerRow.length > 4) {
+        iWeight = 4;
+    }
+    for (let i = 1; i < datasets.mapping_raw.length; i++) {
+        let r = datasets.mapping_raw[i];
+        if (!r || !Array.isArray(r)) continue;
+        let odaName = r[iOda] ? String(r[iOda]).trim() : '';
+        if (odaName) {
+            let weightVal = 1000;
+            if (iWeight !== -1 && r[iWeight] !== undefined && r[iWeight] !== null) {
+                let parsedWeight = parseFloat(String(r[iWeight]).replace(/,/g, ''));
+                if (!isNaN(parsedWeight) && parsedWeight > 0) {
+                    weightVal = parsedWeight;
+                }
+            }
+            productWeightMap.set(odaName.toLowerCase(), weightVal);
+        }
+    }
+}
+
+function getProductWeightKG(productName) {
+    if (!productName) return 1;
+    let nameLower = productName.toLowerCase();
+    if (productWeightMap.has(nameLower)) {
+        return productWeightMap.get(nameLower) / 1000;
+    }
+    for (let [key, val] of productWeightMap.entries()) {
+        if (nameLower.includes(key) || key.includes(nameLower)) {
+            return val / 1000;
+        }
+    }
+    let gMatch = productName.match(/(\d+(?:\.\d+)?)\s*g/i);
+    if (gMatch) {
+        return parseFloat(gMatch[1]) / 1000;
+    }
+    let kgMatch = productName.match(/(\d+(?:\.\d+)?)\s*kg/i);
+    if (kgMatch) {
+        return parseFloat(kgMatch[1]);
+    }
+    return 1;
+}
+
+function getGlobalNormalizedProduct(name) {
+    if (!name) return '';
+    let n = String(name).trim().toLowerCase();
+    if (globalMappingMap.size === 0 && datasets.mapping_raw) {
+        buildMetadataMaps();
+    }
+    if (globalMappingMap.has(n)) return String(globalMappingMap.get(n)).trim();
+    if (globalStandardNamesSet.has(n)) return String(name).trim();
+    return String(name).trim();
+}
+
+function formatDateStr(d) {
+    let year = d.getFullYear();
+    let month = String(d.getMonth() + 1).padStart(2, '0');
+    let day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function formatDateDMY(d) {
+    let day = String(d.getDate()).padStart(2, '0');
+    let month = String(d.getMonth() + 1).padStart(2, '0');
+    let year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+}
+
+function getMondayOfWeek(year, weekNum) {
+    let simple = new Date(year, 0, 4);
+    let dayOfWeek = simple.getDay();
+    let dayDiff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    let simpleMonday = new Date(year, 0, 4 + dayDiff);
+    let targetMonday = new Date(simpleMonday.getTime() + (weekNum - 1) * 7 * 86400000);
+    return targetMonday;
+}
+
+function getWeekNumber(d) {
+    d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+    let yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+    let weekNo = Math.ceil(( ( (d - yearStart) / 86400000) + 1)/7);
+    return { year: d.getUTCFullYear(), week: weekNo };
+}
+
+function getWeeksOfYear() {
+    let now = new Date();
+    let currentWeekInfo = getWeekNumber(now);
+    let currentWeek = currentWeekInfo.week;
+    let year = currentWeekInfo.year;
+    let options = [];
+    for (let w = currentWeek; w >= 1; w--) {
+        let monday = getMondayOfWeek(year, w);
+        let sunday = new Date(monday.getTime() + 6 * 86400000);
+        let label = `Tuần ${w} (${formatDateDMY(monday)} - ${formatDateDMY(sunday)})`;
+        options.push({
+            year: year,
+            week: w,
+            mondayStr: formatDateStr(monday),
+            sundayStr: formatDateStr(sunday),
+            label: label
+        });
+    }
+    return options;
+}
+
+function getWeeklySalesMonday(weeklyData, fileName) {
+    if (Array.isArray(weeklyData)) {
+        for (let i = 0; i < Math.min(200, weeklyData.length); i++) {
+            let row = weeklyData[i];
+            if (!row) continue;
+            let rawDate = String(row['calendarday'] || row['date'] || row['ngay'] || '').trim();
+            if (rawDate) {
+                let ts = parseDateStrToTime(rawDate);
+                if (ts > 0) {
+                    let d = new Date(ts);
+                    let day = d.getDay();
+                    let diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                    let mondayDate = new Date(d.getFullYear(), d.getMonth(), diff);
+                    return formatDateStr(mondayDate);
+                }
+            }
+        }
+    }
+    if (fileName) {
+        let m = fileName.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+        if (m) {
+            let ts = parseDateStrToTime(`${m[1]}-${m[2]}-${m[3]}`);
+            if (ts > 0) {
+                let d = new Date(ts);
+                let day = d.getDay();
+                let diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                let mondayDate = new Date(d.getFullYear(), d.getMonth(), diff);
+                return formatDateStr(mondayDate);
+            }
+        }
+        let m2 = fileName.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+        if (m2) {
+            let ts = parseDateStrToTime(`${m2[3]}-${m2[2]}-${m2[1]}`);
+            if (ts > 0) {
+                let d = new Date(ts);
+                let day = d.getDay();
+                let diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                let mondayDate = new Date(d.getFullYear(), d.getMonth(), diff);
+                return formatDateStr(mondayDate);
+            }
+        }
+        let wMatch = fileName.match(/W(\d{1,2})/i);
+        if (wMatch) {
+            let weekNum = parseInt(wMatch[1], 10);
+            let year = new Date().getFullYear();
+            let mondayDate = getMondayOfWeek(year, weekNum);
+            return formatDateStr(mondayDate);
+        }
+    }
+    let d = new Date();
+    let day = d.getDay();
+    let diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    let mondayDate = new Date(d.getFullYear(), d.getMonth(), diff);
+    return formatDateStr(mondayDate);
+}
+
+function getOverlapDays(mondayStr, startRangeStr, endRangeStr) {
+    let mon = new Date(mondayStr);
+    let sun = new Date(mon.getTime() + 6 * 86400000);
+    let rangeStart = new Date(startRangeStr);
+    let rangeEnd = new Date(endRangeStr);
+    let overlapStart = new Date(Math.max(mon, rangeStart));
+    let overlapEnd = new Date(Math.min(sun, rangeEnd));
+    if (overlapStart <= overlapEnd) {
+        return Math.round((overlapEnd - overlapStart) / 86400000) + 1;
+    }
+    return 0;
+}
 
 // Elements
 const btnCalculate = document.getElementById('btn-calculate');
@@ -281,6 +538,8 @@ function handleFileUpload(event, type) {
             const arr = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
             datasets['mapping_raw'] = arr;
             saveToDB('mapping_raw', arr);
+            buildMetadataMaps();
+            buildProductWeightMap();
             statusEl.textContent = `Đã tải & lưu trữ: ${file.name} (${arr.length} dòng)`;
             statusEl.classList.add('success');
             checkReady();
@@ -313,7 +572,7 @@ function handleFileUpload(event, type) {
                 return;
             }
 
-            if (type === 'monthly') {
+            if (type === 'monthly' || type === 'trend_report') {
                 let allJson = [];
                 workbook.SheetNames.forEach(name => {
                     const ws = workbook.Sheets[name];
@@ -326,13 +585,27 @@ function handleFileUpload(event, type) {
                 datasets[type] = json;
             }
 
-            if (type === 'monthly' || type === 'weekly') {
+            if (type === 'monthly' || type === 'weekly' || type === 'trend_report' || type === 'schedule' || type === 'inventory' || type === 'input') {
                 saveToDB(type, datasets[type]);
-                statusEl.textContent = `Đã tải & lưu trữ: ${file.name} (${datasets[type].length} dòng)`;
-            } else {
                 if (type === 'schedule') {
                     scheduleFileName = file.name.replace(/\.[^/.]+$/, "");
+                    saveToDB('soq_latest_filename', scheduleFileName);
+                    buildMetadataMaps();
                 }
+                if (type === 'weekly') {
+                    let mondayStr = getWeeklySalesMonday(datasets['weekly'], file.name);
+                    saveToDB('weekly_sales_archive_' + mondayStr, datasets['weekly']);
+                    if (typeof firebase !== 'undefined') {
+                        firebase.database().ref('archive_weekly_sales/' + mondayStr).set({
+                            data: datasets['weekly'],
+                            timestamp: Date.now(),
+                            fileName: file.name
+                        }).then(() => console.log(`Đã lưu trữ báo cáo doanh số tuần ngày ${mondayStr} lên Cloud.`))
+                          .catch(err => console.error("Lỗi lưu doanh số tuần Cloud:", err));
+                    }
+                }
+                statusEl.textContent = `Đã tải & lưu trữ: ${file.name} (${datasets[type].length} dòng)`;
+            } else {
                 statusEl.textContent = `Đã tải: ${file.name} (${datasets[type].length} dòng)`;
             }
             statusEl.classList.add('success');
@@ -356,6 +629,7 @@ document.getElementById('file-inventory').addEventListener('change', e => handle
 document.getElementById('file-input').addEventListener('change', e => handleFileUpload(e, 'input'));
 document.getElementById('file-monthly').addEventListener('change', e => handleFileUpload(e, 'monthly'));
 document.getElementById('file-weekly').addEventListener('change', e => handleFileUpload(e, 'weekly'));
+document.getElementById('file-trend_report').addEventListener('change', e => handleFileUpload(e, 'trend_report'));
 document.getElementById('file-mapping').addEventListener('change', e => handleFileUpload(e, 'mapping'));
 document.getElementById('file-template').addEventListener('change', e => handleFileUpload(e, 'template'));
 
@@ -415,7 +689,7 @@ async function loadFromDB(key) {
             let dDate = new Date(raw.timestamp);
             let nDate = new Date();
 
-            if (key === 'monthly') {
+            if (key === 'monthly' || key === 'trend_report') {
                 if (dDate.getMonth() !== nDate.getMonth() || dDate.getFullYear() !== nDate.getFullYear()) {
                     // Nếu là file tháng, chỉ xóa nếu quá 2 tháng (để user dùng được tháng trước + tháng này)
                     let monthDiff = (nDate.getFullYear() - dDate.getFullYear()) * 12 + (nDate.getMonth() - dDate.getMonth());
@@ -430,14 +704,6 @@ async function loadFromDB(key) {
                 if (nDate.getTime() >= expirationTime) {
                     await deleteFromDB(key);
                     return { invalidated: true, reason: "sang thứ 3 tuần mới" };
-                }
-            } else if (key === 'schedule' || key === 'inventory' || key === 'input' || key.startsWith('soq_latest_')) {
-                let vnDateStr = (date) => {
-                    return date.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' });
-                };
-                if (vnDateStr(dDate) !== vnDateStr(nDate)) {
-                    await deleteFromDB(key);
-                    return { invalidated: true, reason: "qua ngày mới" };
                 }
             }
             return raw.data;
@@ -464,8 +730,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Tự động load lại Cache của Monthly, Weekly, Mapping File nếu có
-    let [cMonthly, cWeekly, cMapping, cTemplate] = await Promise.all([
-        loadFromDB('monthly'), loadFromDB('weekly'), loadFromDB('mapping_raw'), loadFromDB('template_headers')
+    let [cMonthly, cWeekly, cMapping, cTemplate, cTrendReport, cSchedule, cInventory, cInput, cDeliveryDate] = await Promise.all([
+        loadFromDB('monthly'), loadFromDB('weekly'), loadFromDB('mapping_raw'), loadFromDB('template_headers'), loadFromDB('trend_report'),
+        loadFromDB('schedule'), loadFromDB('inventory'), loadFromDB('input'), loadFromDB('soq_latest_delivery_date')
     ]);
 
     if (typeof firebase !== 'undefined') {
@@ -479,6 +746,10 @@ window.addEventListener('DOMContentLoaded', async () => {
         } catch (err) {
             console.error("Lỗi lấy Form Mẫu từ Cloud, dùng Local:", err);
         }
+    }
+    
+    if (cDeliveryDate) {
+        currentDeliveryDateStr = cDeliveryDate;
     }
 
     if (cTemplate && cTemplate.length > 0) {
@@ -508,12 +779,49 @@ window.addEventListener('DOMContentLoaded', async () => {
             if (el) { el.textContent = `Đã dùng bản lưu trước (${cWeekly.length} dòng)`; el.classList.add('success'); }
         }
     }
+    
+    if (cTrendReport) {
+        if (cTrendReport.invalidated) {
+            let el = document.getElementById('status-trend_report');
+            if (el) { el.innerHTML = `<span style="color: #ff9800; font-weight: bold;">Lưu ý: Đã sang tháng mới. Vui lòng Tải Lên file xu hướng bán mới!</span>`; el.classList.remove('success'); }
+        } else if (cTrendReport.length > 0) {
+            datasets.trend_report = cTrendReport;
+            let el = document.getElementById('status-trend_report');
+            if (el) { el.textContent = `Đã dùng bản lưu trước (${cTrendReport.length} dòng)`; el.classList.add('success'); }
+        }
+    }
+
     if (cMapping && cMapping.length > 0) {
         datasets.mapping_raw = cMapping;
         let el = document.getElementById('status-mapping');
         if (el) { el.textContent = `Đã dùng bản lưu trước (${cMapping.length} dòng)`; el.classList.add('success'); }
     }
 
+    if (cSchedule && cSchedule.length > 0) {
+        datasets.schedule = cSchedule;
+        let el = document.getElementById('status-schedule');
+        if (el) {
+            let savedName = await loadFromDB('soq_latest_filename');
+            if (savedName) scheduleFileName = savedName;
+            el.textContent = `Đã dùng bản lưu trước (${cSchedule.length} dòng)`;
+            el.classList.add('success');
+        }
+    }
+
+    if (cInventory && cInventory.length > 0) {
+        datasets.inventory = cInventory;
+        let el = document.getElementById('status-inventory');
+        if (el) { el.textContent = `Đã dùng bản lưu trước (${cInventory.length} dòng)`; el.classList.add('success'); }
+    }
+
+    if (cInput && cInput.length > 0) {
+        datasets.input = cInput;
+        let el = document.getElementById('status-input');
+        if (el) { el.textContent = `Đã dùng bản lưu trước (${cInput.length} dòng)`; el.classList.add('success'); }
+    }
+
+    buildMetadataMaps();
+    buildProductWeightMap();
     checkReady();
 });
 
@@ -526,6 +834,47 @@ function checkReady() {
 
 let finalResults = [];
 let isHistoryView = false;
+let isArchiveView = false;
+let currentDeliveryDateStr = "";
+
+function archiveTodayData() {
+    if (!finalResults || finalResults.length === 0) return;
+    
+    let dateStr = currentDeliveryDateStr;
+    if (!dateStr) {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        dateStr = `${year}-${month}-${day}`;
+    }
+
+    const archivePayload = {
+        filename: scheduleFileName,
+        results: finalResults,
+        timestamp: Date.now(),
+        dateStr: dateStr
+    };
+    saveToDB('soq_archive_' + dateStr, archivePayload);
+
+    if (typeof firebase !== 'undefined') {
+        let userName = inputUserName ? inputUserName.value.trim() : "Hệ thống";
+        if (!userName) userName = "Ẩn danh";
+        
+        const cloudPayload = {
+            filename: scheduleFileName,
+            results: finalResults,
+            timestamp: Date.now(),
+            dateStr: dateStr,
+                      deliveryDateStr: currentDeliveryDateStr,
+            userName: userName
+        };
+        
+        firebase.database().ref('archive_soq/' + dateStr).set(cloudPayload)
+            .then(() => console.log(`Đã lưu trữ dữ liệu ngày ${dateStr} lên Cloud.`))
+            .catch(err => console.error("Lỗi lưu trữ Cloud:", err));
+    }
+}
 
 function extractSAP(str) {
     if (!str) return "";
@@ -606,10 +955,24 @@ btnCalculate.addEventListener('click', () => {
 
             targetTimestamp = dTarget.getTime();
 
+            // LƯU LẠI NGÀY GIAO HÀNG ĐỂ LƯU TRỮ
+            const year = dTarget.getFullYear();
+            const month = String(dTarget.getMonth() + 1).padStart(2, '0');
+            const day = String(dTarget.getDate()).padStart(2, '0');
+            currentDeliveryDateStr = `${year}-${month}-${day}`;
+            saveToDB('soq_latest_delivery_date', currentDeliveryDateStr);
+
             // Cuối tuần: Thứ 7 (6), Chủ nhật (0)
             if (finalWkday === 6 || finalWkday === 0) {
                 isWeekendDelivery = true;
             }
+        } else {
+            let dTarget = new Date();
+            const year = dTarget.getFullYear();
+            const month = String(dTarget.getMonth() + 1).padStart(2, '0');
+            const day = String(dTarget.getDate()).padStart(2, '0');
+            currentDeliveryDateStr = `${year}-${month}-${day}`;
+            saveToDB('soq_latest_delivery_date', currentDeliveryDateStr);
         }
 
         // ----------- 1. Map Rules (WM Name -> ODA Name) -----------
@@ -917,6 +1280,38 @@ btnCalculate.addEventListener('click', () => {
                 finalID = lookedUp ? lookedUp : extractSAP(nick);
             }
             return finalID;
+        }
+
+        const trendReportMap = new Map();
+        if (datasets.trend_report && datasets.trend_report.length > 0) {
+            datasets.trend_report.forEach(row => {
+                let st = row['sap'] || row['storecode'] || row['store'] || row['mach'] || row['tencuahang'] || row['têncửahàng'];
+                let pr = row['productnameprimarylanguage'] || row['productname'] || row['product'] || row['tensanpham'] || row['productnameprimarylanguage'];
+                
+                if (!pr) {
+                    let foundKey = Object.keys(row).find(k => k.includes('product') || k.includes('name') || k.includes('sanpham'));
+                    if (foundKey) pr = row[foundKey];
+                }
+                if (!st) {
+                    let foundKey = Object.keys(row).find(k => k.includes('sap') || k.includes('store') || k.includes('mach'));
+                    if (foundKey) st = row[foundKey];
+                }
+                
+                let action = row['action'] || row['hanhdong'] || row['ghi_chu'] || row['ghichu'];
+                if (!action) {
+                    let foundKey = Object.keys(row).find(k => k.includes('action') || k.includes('hanhdong') || k.includes('xu_huong') || k.includes('xuhuong'));
+                    if (foundKey) action = row[foundKey];
+                }
+
+                if (st && pr && action) {
+                    let storeID = resolveStoreID(st, st);
+                    let prodStd = normalizeProductName(pr);
+                    if (prodStd) {
+                        let key = `${storeID}_${prodStd.toLowerCase()}`;
+                        trendReportMap.set(key, String(action).trim());
+                    }
+                }
+            });
         }
 
         // --- BƯỚC 0: TÌM NGÀY LỚN NHẤT CỦA TỪNG STORE LÀM MỐC (T) ---
@@ -1638,6 +2033,21 @@ btnCalculate.addEventListener('click', () => {
             let soq = totalDemand - expectedInvAtArrival;
             soq = Math.max(Math.ceil(soq), 0);
 
+            let itemKey = `${data.storeID}_${data.prodStd.toLowerCase()}`;
+            let trendAction = trendReportMap.get(itemKey) || '';
+
+            let xuHuongHtml = '<span>-</span>';
+            if (trendAction) {
+                let lowerAction = trendAction.toLowerCase();
+                if (lowerAction.includes('tốt') || lowerAction.includes('tot')) {
+                    xuHuongHtml = `<span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.85em;">${trendAction}</span>`;
+                } else if (lowerAction.includes('ngừng') || lowerAction.includes('ngưng') || lowerAction.includes('ngung')) {
+                    xuHuongHtml = `<span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.85em;">${trendAction}</span>`;
+                } else {
+                    xuHuongHtml = `<span style="background: rgba(255, 255, 255, 0.05); color: var(--text-main); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 0.85em;">${trendAction}</span>`;
+                }
+            }
+
             // HIỂN THỊ ĐẦY ĐỦ SOQ NẾU CÓ BẤT KỲ Ý NGHĨA KINH DOANH NÀO
             // Ẩn dòng có TẤT CẢ = 0 (Đã comment lại theo yêu cầu để show đủ 46 mã)
             // if (soq === 0 && totalDemand === 0 && finalInv === 0 && finalInput === 0 && finalDisp === 0) {
@@ -1668,6 +2078,8 @@ btnCalculate.addEventListener('click', () => {
                 'input': Number(finalInput.toFixed(2)),
                 'penalty': penaltyApplied > 0 ? `-${penaltyApplied.toFixed(2)}` : '0',
                 'soq': soq,
+                'xu_huong': trendAction,
+                'xu_huong_html': xuHuongHtml,
                 // Tooltips
                 'tip_ads': (mTotal === 0 && wTotal > 0) 
                            ? `[MÃ MỚI TỪ FILE TUẦN] Sản lượng: ${wTotal.toFixed(1)} / ${Math.round(wDaysCount)} ngày (Vòng đời)\n=> Trung bình: ${forecastDay.toFixed(2)} SP/ngày` 
@@ -1708,7 +2120,7 @@ btnCalculate.addEventListener('click', () => {
             let invKeys = (datasets.inventory && datasets.inventory.length > 0) ? Object.keys(datasets.inventory[0]).join(', ') : 'No data';
             let schedKeys = (datasets.schedule && datasets.schedule.length > 0) ? Object.keys(datasets.schedule[0]).join(', ') : 'No data';
 
-            tbody.innerHTML = `<tr><td colspan="14" style="text-align:left; color: var(--danger); padding: 2rem;">
+            tbody.innerHTML = `<tr><td colspan="15" style="text-align:left; color: var(--danger); padding: 2rem;">
             <strong>Không tìm thấy bất kỳ dữ liệu hợp lệ nào. (Tồn kho, hàng nhập và lịch giao không khớp ngàm dữ liệu, hoặc tất cả đều bằng 0).</strong><br/><br/>
             <div style="font-family: monospace; font-size:12px; color: var(--text-muted);">
                 <strong>--- TRÌNH KIỂM TRA LỖI NỘI BỘ ---</strong><br/>
@@ -1731,6 +2143,7 @@ btnCalculate.addEventListener('click', () => {
              saveToDB('soq_latest_filename', scheduleFileName);
              saveToDB('soq_latest_html', tbody.innerHTML);
              saveToDB('soq_latest_array', finalResults);
+             archiveTodayData();
 
              // --- LƯU LÊN FIREBASE (CLOUD STORAGE) ---
              if (typeof firebase !== 'undefined') {
@@ -1745,6 +2158,7 @@ btnCalculate.addEventListener('click', () => {
                      filename: scheduleFileName,
                      timestamp: now.getTime(),
                      dateStr: dateStr,
+                      deliveryDateStr: currentDeliveryDateStr,
                      userName: userName
                  };
 
@@ -1804,6 +2218,7 @@ if (btnSaveChanges) {
                 filename: scheduleFileName,
                 timestamp: now.getTime(),
                 dateStr: dateStr,
+                      deliveryDateStr: currentDeliveryDateStr,
                 userName: userName
             };
 
@@ -1882,6 +2297,7 @@ if (btnSaveChanges) {
                     btnSaveChanges.innerHTML = "✔️ Đã lưu";
                     setTimeout(() => { btnSaveChanges.innerHTML = "💾 Lưu Thay Đổi"; }, 2000);
                     saveToDB('soq_latest_array', finalResults);
+              archiveTodayData();
                     
                     renderSOQTable(finalResults);
                     populateRegionDropdown();
@@ -1905,6 +2321,9 @@ if (btnSaveChanges) {
 
 // Export to Excel (Bypass Security Block for local file:///)
 btnExport.addEventListener('click', () => {
+    if (!isArchiveView) {
+        archiveTodayData();
+    }
     if (!datasets.template_headers || datasets.template_headers.length === 0) {
         alert("Vui lòng tải lên 'Form Xuất Mẫu' ở mục 6 (Cấu hình) trước khi xuất Excel để đảm bảo đúng định dạng!");
         return;
@@ -1932,7 +2351,7 @@ btnExport.addEventListener('click', () => {
             });
         }
         let s = stores.get(item.sap);
-        let qty = isHistoryView ? (item.final_order !== undefined ? item.final_order : '') : item.soq;
+        let qty = (isHistoryView || isArchiveView) ? (item.final_order !== undefined ? item.final_order : '') : item.soq;
         
         if (qty !== '' && qty > 0) {
              let pKey = String(item.product).trim().toLowerCase();
@@ -1981,7 +2400,7 @@ btnExport.addEventListener('click', () => {
         "Mã SAP (Store)", "Tên Cửa Hàng", "Khu Vực", "Tên Sản Phẩm", 
         "Trung Bình Bán/Ngày", "Xu Hướng (%)", "ADS T2-T6", "ADS T7-CN", 
         "XU HƯỚNG GIAO (%)", "Leadtime", "Total Demand", "Tồn (Inv)", 
-        "Nhập (Input)", "Giảm trừ (Penalty)", "SOQ (GỢI Ý)", "SL ĐẶT", "GHI CHÚ"
+        "Nhập (Input)", "Giảm trừ", "SOQ (GỢI Ý)", "Xu hướng", "SL ĐẶT", "GHI CHÚ"
     ];
     rawAoa.push(rawHeaders);
     
@@ -1989,7 +2408,7 @@ btnExport.addEventListener('click', () => {
         let trendText = String(item.trendHtml || '').replace(/<[^>]*>?/gm, '').trim();
         let growthText = String(item.growthHtml || '').replace(/<[^>]*>?/gm, '').trim();
         
-        let slDat = isHistoryView ? (item.final_order !== undefined ? item.final_order : '') : item.soq;
+        let slDat = (isHistoryView || isArchiveView) ? (item.final_order !== undefined ? item.final_order : '') : item.soq;
         let ghiChu = item.note || '';
 
         rawAoa.push([
@@ -2008,6 +2427,7 @@ btnExport.addEventListener('click', () => {
             item.input,
             item.penalty,
             item.soq,
+            item.xu_huong || '',
             slDat,
             ghiChu
         ]);
@@ -2050,6 +2470,7 @@ btnExport.addEventListener('click', () => {
 const searchStoreInput = document.getElementById('search-store');
 const searchProductInput = document.getElementById('search-product');
 const filterRegionSelect = document.getElementById('filter-region');
+const filterTrendActionSelect = document.getElementById('filter-trend-action');
 
 function populateRegionDropdown() {
     if (!filterRegionSelect) return;
@@ -2077,6 +2498,7 @@ function filterTable() {
     const storeQuery = searchStoreInput.value.toLowerCase();
     const productQuery = searchProductInput.value.toLowerCase();
     const regionQuery = filterRegionSelect ? filterRegionSelect.value : "";
+    const trendActionQuery = filterTrendActionSelect ? filterTrendActionSelect.value : "";
     const rows = document.querySelectorAll('#soq-tbody tr');
 
     rows.forEach(row => {
@@ -2085,12 +2507,25 @@ function filterTable() {
         const storeName = row.cells[1].textContent.toLowerCase();
         const productName = row.cells[2].textContent.toLowerCase();
         const region = row.getAttribute('data-region') || 'Khác';
+        const xuHuong = row.getAttribute('data-xu-huong') || '';
+        const lowerXuHuong = xuHuong.toLowerCase();
 
         const matchStore = sap.includes(storeQuery) || storeName.includes(storeQuery);
         const matchProduct = productName.includes(productQuery);
         const matchRegion = regionQuery === "" || region === regionQuery;
+        
+        let matchTrendAction = false;
+        if (trendActionQuery === "") {
+            matchTrendAction = true;
+        } else if (trendActionQuery === "bantot") {
+            matchTrendAction = lowerXuHuong.includes('tốt') || lowerXuHuong.includes('tot');
+        } else if (trendActionQuery === "ngunggiao") {
+            matchTrendAction = lowerXuHuong.includes('ngừng') || lowerXuHuong.includes('ngưng') || lowerXuHuong.includes('ngung');
+        } else if (trendActionQuery === "trong") {
+            matchTrendAction = xuHuong.trim() === "" || xuHuong === "-";
+        }
 
-        if (matchStore && matchProduct && matchRegion) {
+        if (matchStore && matchProduct && matchRegion && matchTrendAction) {
             row.style.display = '';
         } else {
             row.style.display = 'none';
@@ -2100,6 +2535,9 @@ function filterTable() {
 
 if (filterRegionSelect) {
     filterRegionSelect.addEventListener('change', filterTable);
+}
+if (filterTrendActionSelect) {
+    filterTrendActionSelect.addEventListener('change', filterTable);
 }
 
 if (searchStoreInput && searchProductInput) {
@@ -2139,18 +2577,34 @@ if (searchStoreInput && searchProductInput) {
 
 // --- COLLAPSE SIDEBAR ---
 const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+const btnToggleSidebarWeekly = document.getElementById('btn-toggle-sidebar-weekly');
 const sidebar = document.querySelector('.sidebar');
 
-if (btnToggleSidebar && sidebar) {
-    btnToggleSidebar.addEventListener('click', () => {
+function toggleSidebar() {
+    const buttons = [
+        document.getElementById('btn-toggle-sidebar'),
+        document.getElementById('btn-toggle-sidebar-weekly')
+    ];
+    if (sidebar) {
         if (sidebar.style.display === 'none') {
             sidebar.style.display = 'flex';
-            btnToggleSidebar.innerHTML = '<span>◄</span> Ẩn Menu trái';
+            buttons.forEach(btn => {
+                if (btn) btn.innerHTML = '<span>◄</span> Ẩn Menu trái';
+            });
         } else {
             sidebar.style.display = 'none';
-            btnToggleSidebar.innerHTML = '<span>►</span> Hiện Menu trái';
+            buttons.forEach(btn => {
+                if (btn) btn.innerHTML = '<span>►</span> Hiện Menu trái';
+            });
         }
-    });
+    }
+}
+
+if (btnToggleSidebar) {
+    btnToggleSidebar.addEventListener('click', toggleSidebar);
+}
+if (btnToggleSidebarWeekly) {
+    btnToggleSidebarWeekly.addEventListener('click', toggleSidebar);
 }
 // --- ĐIỀU CHUYỂN MENU TAB LỊCH SỬ VÀ BẢNG TÍNH ---
 const navDashboard = document.getElementById('nav-dashboard');
@@ -2162,9 +2616,12 @@ if (navHistory && navDashboard) {
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         navHistory.classList.add('active');
         isHistoryView = true;
+        isArchiveView = false;
         
-        // Ẩn khu vực tải file
+        // Ẩn khu vực tải file và bảng chọn archive
         document.querySelector('.upload-section').style.display = 'none';
+        document.getElementById('archive-selector-container').style.display = 'none';
+        document.getElementById('weekly-review-container').style.display = 'none';
         document.querySelectorAll('.history-col').forEach(c => c.style.display = 'table-cell');
         let btnSave = document.getElementById('btn-save-changes');
         if (btnSave) btnSave.style.display = 'inline-block';
@@ -2175,7 +2632,7 @@ if (navHistory && navDashboard) {
 
         // Hiện section kết quả trước để người dùng thấy đang load
         document.getElementById('results-section').style.display = 'block';
-        tbody.innerHTML = `<tr><td colspan="14" style="text-align:center; padding: 2rem;">🔄 Đang tải lịch sử từ Cloud...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding: 2rem;">🔄 Đang tải lịch sử từ Cloud...</td></tr>`;
 
         // 1. Kiểm tra Firebase trước (Shared History)
         if (typeof firebase !== 'undefined') {
@@ -2184,11 +2641,15 @@ if (navHistory && navDashboard) {
                 const todayStr = new Date().toISOString().split('T')[0];
 
                 if (data && data.dateStr === todayStr) {
+                    if (data.deliveryDateStr) {
+                        currentDeliveryDateStr = data.deliveryDateStr;
+                        saveToDB('soq_latest_delivery_date', currentDeliveryDateStr);
+                    }
                     // Dữ liệu hợp lệ (trong ngày)
                     // Render bảng từ Array
                     finalResults = prepHistoricalData(data.results);
                     renderSOQTable(finalResults);
-        populateRegionDropdown();
+                    populateRegionDropdown();
                     btnExport.style.display = 'inline-block';
 
                     let timeStr = new Date(data.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
@@ -2259,6 +2720,20 @@ if (navHistory && navDashboard) {
             item.input = item.input || 0;
             item.penalty = item.penalty || '0';
             item.soq = item.soq || 0;
+            item.xu_huong = item.xu_huong || '';
+            
+            let xuHuongHtml = '<span>-</span>';
+            if (item.xu_huong) {
+                let lowerAction = item.xu_huong.toLowerCase();
+                if (lowerAction.includes('tốt') || lowerAction.includes('tot')) {
+                    xuHuongHtml = `<span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.85em;">${item.xu_huong}</span>`;
+                } else if (lowerAction.includes('ngừng') || lowerAction.includes('ngưng') || lowerAction.includes('ngung')) {
+                    xuHuongHtml = `<span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.85em;">${item.xu_huong}</span>`;
+                } else {
+                    xuHuongHtml = `<span style="background: rgba(255, 255, 255, 0.05); color: var(--text-main); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 0.85em;">${item.xu_huong}</span>`;
+                }
+            }
+            item.xu_huong_html = xuHuongHtml;
             
             return item;
         });
@@ -2278,7 +2753,7 @@ if (navHistory && navDashboard) {
             titleSpan.innerHTML = `Kết Quả Dự Báo <span style="font-size: 0.6em; background: rgba(255,152,0,0.2); color: #ff9800; border: 1px solid #ff9800; padding: 4px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">Local: Bản lưu máy bạn</span>`;
         } else {
             btnExport.style.display = 'none';
-            tbody.innerHTML = `<tr><td colspan="14" style="text-align:center; padding: 2.5rem; color: #ff9800; font-size: 1.1em;"><i class="fas fa-history" style="font-size: 2em; display: block; margin-bottom: 10px; opacity: 0.5;"></i>Không có lịch sử chia sẻ hoặc lịch sử máy bạn đã hết hạn trong ngày hôm nay.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="15" style="text-align:center; padding: 2.5rem; color: #ff9800; font-size: 1.1em;"><i class="fas fa-history" style="font-size: 2em; display: block; margin-bottom: 10px; opacity: 0.5;"></i>Không có lịch sử chia sẻ hoặc lịch sử máy bạn đã hết hạn trong ngày hôm nay.</td></tr>`;
             titleSpan.innerHTML = `Kết Quả Dự Báo`;
         }
     }
@@ -2288,9 +2763,12 @@ if (navHistory && navDashboard) {
         document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         navDashboard.classList.add('active');
         isHistoryView = false;
+        isArchiveView = false;
         
         // Hiện lại khu vực Tải file
         document.querySelector('.upload-section').style.display = 'block';
+        document.getElementById('archive-selector-container').style.display = 'none';
+        document.getElementById('weekly-review-container').style.display = 'none';
         document.querySelectorAll('.history-col').forEach(c => c.style.display = 'none');
         let btnSave = document.getElementById('btn-save-changes');
         if (btnSave) btnSave.style.display = 'none';
@@ -2304,6 +2782,122 @@ if (navHistory && navDashboard) {
             finalResults = [];
         }
     });
+
+    const navArchive = document.getElementById('nav-archive');
+    const archiveDateSelect = document.getElementById('archive-date-select');
+    const btnLoadArchive = document.getElementById('btn-load-archive');
+
+    if (navArchive) {
+        navArchive.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            navArchive.classList.add('active');
+            isHistoryView = false;
+            isArchiveView = true;
+            
+            // Ẩn khu vực tải file, hiện khung chọn lưu trữ
+            document.querySelector('.upload-section').style.display = 'none';
+            document.getElementById('archive-selector-container').style.display = 'block';
+            document.getElementById('weekly-review-container').style.display = 'none';
+            
+            // Hiện các cột lịch sử (chế độ xem chỉ đọc)
+            document.querySelectorAll('.history-col').forEach(c => c.style.display = 'table-cell');
+            
+            // Ẩn nút lưu thay đổi (vì là archive xem lại chỉ đọc)
+            let btnSave = document.getElementById('btn-save-changes');
+            if (btnSave) btnSave.style.display = 'none';
+            
+            // Dọn dẹp bảng và kết quả cũ
+            let tbody = document.getElementById('soq-tbody');
+            tbody.innerHTML = '';
+            document.getElementById('results-section').style.display = 'none';
+            
+            // Thiết lập dropdown 7 ngày gần nhất
+            if (archiveDateSelect) {
+                archiveDateSelect.innerHTML = '<option value="">-- Chọn Ngày --</option>';
+                const today = new Date();
+                for (let i = 1; i <= 7; i++) {
+                    const prevDate = new Date(today);
+                    prevDate.setDate(today.getDate() - i);
+                    
+                    const year = prevDate.getFullYear();
+                    const month = String(prevDate.getMonth() + 1).padStart(2, '0');
+                    const day = String(prevDate.getDate()).padStart(2, '0');
+                    const dateStr = `${year}-${month}-${day}`;
+                    const displayStr = `${day}/${month}/${year}`;
+                    
+                    let opt = document.createElement('option');
+                    opt.value = dateStr;
+                    opt.text = displayStr;
+                    archiveDateSelect.appendChild(opt);
+                }
+            }
+            
+            let titleSpan = document.querySelector('.results-section h2');
+            if (titleSpan) titleSpan.innerHTML = `Kết Quả Dự Báo`;
+        });
+    }
+
+    const loadArchiveData = async () => {
+        const dateStr = archiveDateSelect.value;
+        if (!dateStr) {
+            alert("Vui lòng chọn ngày lưu trữ!");
+            return;
+        }
+        
+        let tbody = document.getElementById('soq-tbody');
+        let titleSpan = document.querySelector('.results-section h2');
+        let btnExport = document.getElementById('btn-export');
+        
+        document.getElementById('results-section').style.display = 'block';
+        tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding: 2rem;">🔄 Đang tải dữ liệu lưu trữ ngày ${dateStr.split('-').reverse().join('/')}...</td></tr>`;
+        
+        const renderArchive = (data, sourceName) => {
+            finalResults = prepHistoricalData(data.results || data);
+            renderSOQTable(finalResults);
+            populateRegionDropdown();
+            if (data.filename) scheduleFileName = data.filename;
+            btnExport.style.display = 'inline-block';
+            let formattedDate = dateStr.split('-').reverse().join('/');
+            titleSpan.innerHTML = `Kết Quả Dự Báo <span style="font-size: 0.6em; background: rgba(33, 150, 243, 0.2); color: #2196f3; border: 1px solid #2196f3; padding: 4px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">Lưu trữ ${sourceName}: ${formattedDate}</span>`;
+        };
+
+        // 1. Thử tải từ Firebase trước
+        if (typeof firebase !== 'undefined') {
+            try {
+                let snapshot = await firebase.database().ref('archive_soq/' + dateStr).once('value');
+                let data = snapshot.val();
+                if (data && data.results) {
+                    renderArchive(data, "Cloud");
+                    return;
+                }
+            } catch (err) {
+                console.error("Lỗi tải lưu trữ từ Cloud:", err);
+            }
+        }
+        
+        // 2. Fallback tải từ IndexedDB local
+        try {
+            let localData = await loadFromDB('soq_archive_' + dateStr);
+            if (localData && (localData.results || Array.isArray(localData))) {
+                renderArchive(localData, "Local");
+                return;
+            }
+        } catch (err) {
+            console.error("Lỗi tải lưu trữ Local:", err);
+        }
+        
+        // 3. Không tìm thấy dữ liệu
+        tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding: 2.5rem; color: #ff9800; font-size: 1.1em;"><i class="fas fa-exclamation-triangle" style="font-size: 2em; display: block; margin-bottom: 10px; opacity: 0.5;"></i>Không tìm thấy dữ liệu lưu trữ ngày ${dateStr.split('-').reverse().join('/')} trên hệ thống.</td></tr>`;
+        btnExport.style.display = 'none';
+    };
+
+    if (btnLoadArchive) {
+        btnLoadArchive.addEventListener('click', loadArchiveData);
+    }
+    if (archiveDateSelect) {
+        archiveDateSelect.addEventListener('change', loadArchiveData);
+    }
 }
 
 // --- TABLE SORTING LOGIC ---
@@ -2315,6 +2909,7 @@ function renderSOQTable(data) {
     data.forEach((item, index) => {
         let tr = document.createElement('tr');
         tr.setAttribute('data-region', item.region || 'Khác');
+        tr.setAttribute('data-xu-huong', item.xu_huong || '');
         
         let finalOrderTd = '';
         let noteTd = '';
@@ -2323,6 +2918,11 @@ function renderSOQTable(data) {
             finalOrderTd = `<td><input type="number" class="final-order-input" data-index="${index}" value="${finalVal}" style="width: 80px; padding: 6px; text-align: center; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; background: #fff; color: #333;" placeholder="-" min="0"></td>`;
             let noteVal = item.note !== undefined ? item.note : '';
             noteTd = `<td><input type="text" class="note-input" data-index="${index}" value="${noteVal}" style="width: 150px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #333;" placeholder="Ghi chú..."></td>`;
+        } else if (isArchiveView) {
+            let finalVal = item.final_order !== undefined ? item.final_order : '';
+            finalOrderTd = `<td style="font-weight: bold; text-align: center; color: var(--primary);">${finalVal !== '' ? finalVal : '-'}</td>`;
+            let noteVal = item.note !== undefined ? item.note : '';
+            noteTd = `<td style="color: var(--text-muted); font-style: italic;">${noteVal !== '' ? noteVal : ''}</td>`;
         }
 
         tr.innerHTML = `
@@ -2340,6 +2940,7 @@ function renderSOQTable(data) {
             <td class="highlight" title="${item.tip_input}">${item.input}</td>
             <td style="color:${item.penalty !== '0' ? 'var(--danger)' : ''}" title="${item.tip_penalty}">${item.penalty}</td>
             <td class="highlight">${item.soq}</td>
+            <td>${item.xu_huong_html || '<span>-</span>'}</td>
             ${finalOrderTd}
             ${noteTd}
         `;
@@ -2358,6 +2959,10 @@ function renderSOQTable(data) {
                     data[idx].is_dirty = true;
                 }
             });
+            input.addEventListener('change', (e) => {
+                saveToDB('soq_latest_array', finalResults);
+                archiveTodayData();
+            });
         });
         document.querySelectorAll('.note-input').forEach(input => {
             input.addEventListener('input', (e) => {
@@ -2369,6 +2974,10 @@ function renderSOQTable(data) {
                     data[idx].note = e.target.value;
                     data[idx].is_dirty = true;
                 }
+            });
+            input.addEventListener('change', (e) => {
+                saveToDB('soq_latest_array', finalResults);
+                archiveTodayData();
             });
         });
     }
@@ -2445,3 +3054,647 @@ document.addEventListener('wheel', function(event) {
         document.activeElement.blur();
     }
 });
+
+// --- BÁO CÁO TỔNG HỢP TUẦN ---
+async function fetchDailyOrderArchive(dateStr) {
+    if (typeof firebase !== 'undefined') {
+        try {
+            let snapshot = await firebase.database().ref('archive_soq/' + dateStr).once('value');
+            let data = snapshot.val();
+            if (data && data.results) {
+                return data.results;
+            }
+        } catch (e) {
+            console.error(`Lỗi tải archive Cloud ngày ${dateStr}:`, e);
+        }
+    }
+    try {
+        let localData = await loadFromDB('soq_archive_' + dateStr);
+        if (localData) {
+            return localData.results || localData;
+        }
+    } catch (e) {
+        console.error(`Lỗi tải archive Local ngày ${dateStr}:`, e);
+    }
+    return null;
+}
+
+async function fetchWeeklySalesArchive(mondayStr) {
+    if (datasets.weekly && datasets.weekly.length > 0) {
+        let activeMonday = getWeeklySalesMonday(datasets.weekly, "");
+        if (activeMonday === mondayStr) {
+            return datasets.weekly;
+        }
+    }
+    try {
+        let localData = await loadFromDB('weekly_sales_archive_' + mondayStr);
+        if (localData) return localData;
+    } catch (e) {
+        console.error(`Lỗi tải sales archive Local tuần ${mondayStr}:`, e);
+    }
+    if (typeof firebase !== 'undefined') {
+        try {
+            let snapshot = await firebase.database().ref('archive_weekly_sales/' + mondayStr).once('value');
+            let data = snapshot.val();
+            if (data && data.data) {
+                return data.data;
+            }
+        } catch (e) {
+            console.error(`Lỗi tải sales archive Cloud tuần ${mondayStr}:`, e);
+        }
+    }
+    return null;
+}
+
+async function loadWeeklyReview(startDateStr, endDateStr, filterMode) {
+    const tbody = document.getElementById('weekly-review-tbody');
+    tbody.innerHTML = `<tr><td colspan="15" style="text-align:center; padding: 2rem;">🔄 Đang tổng hợp dữ liệu...</td></tr>`;
+    
+    try {
+        let dates = [];
+        let curr = new Date(startDateStr);
+        let end = new Date(endDateStr);
+        while (curr <= end) {
+            dates.push(formatDateStr(curr));
+            curr.setDate(curr.getDate() + 1);
+        }
+        
+        let orderArchives = await Promise.all(dates.map(d => fetchDailyOrderArchive(d)));
+        
+        let mondays = new Set();
+        dates.forEach(dStr => {
+            let d = new Date(dStr);
+            let day = d.getDay();
+            let diff = d.getDate() - day + (day === 0 ? -6 : 1);
+            let mondayDate = new Date(d.getFullYear(), d.getMonth(), diff);
+            mondays.add(formatDateStr(mondayDate));
+        });
+        
+        let salesDataList = await Promise.all(Array.from(mondays).map(mondayStr => fetchWeeklySalesArchive(mondayStr)));
+        
+        buildMetadataMaps();
+        buildProductWeightMap();
+        
+        let aggMap = new Map();
+        
+        // Populate orders
+        for (let i = 0; i < dates.length; i++) {
+            let dateStr = dates[i];
+            let dayOfWeek = new Date(dateStr).getDay();
+            let colIdx = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+            
+            let dailyResults = orderArchives[i];
+            if (dailyResults) {
+                let list = Array.isArray(dailyResults) ? dailyResults : (dailyResults.results || []);
+                list.forEach(item => {
+                    let sap = extractSAP(item.sap);
+                    if (!sap) return;
+                    let region = item.region || globalStoreRegionMap.get(sap) || 'Khác';
+                    let storeName = item.store || globalStoreNamesMap.get(sap) || sap;
+                    let productName = getGlobalNormalizedProduct(item.product);
+                    if (!productName) return;
+                    
+                    let qty = getOrderedQty(item);
+                    
+                    let key = `${region}_${sap}_${storeName}_${productName}`;
+                    if (!aggMap.has(key)) {
+                        aggMap.set(key, {
+                            region,
+                            sap,
+                            storeName,
+                            productName,
+                            orderDays: [0, 0, 0, 0, 0, 0, 0],
+                            totalOrderPcs: 0,
+                            totalOrderKg: 0,
+                            totalSalesPcs: 0,
+                            totalSalesKg: 0
+                        });
+                    }
+                    
+                    let data = aggMap.get(key);
+                    data.orderDays[colIdx] += qty;
+                    data.totalOrderPcs += qty;
+                });
+            }
+        }
+        
+        function getOrderedQty(item) {
+            if (item.final_order !== undefined && item.final_order !== null && item.final_order !== '') {
+                return Number(item.final_order);
+            }
+            if (item.soq !== undefined && item.soq !== null && item.soq !== '') {
+                let val = Number(item.soq);
+                return isNaN(val) ? 0 : val;
+            }
+            return 0;
+        }
+
+        // Populate sales
+        for (let idx = 0; idx < salesDataList.length; idx++) {
+            let weeklyData = salesDataList[idx];
+            let mondayStr = Array.from(mondays)[idx];
+            if (!weeklyData || !Array.isArray(weeklyData)) continue;
+            
+            let overlapDays = 7;
+            if (filterMode === 'date-range') {
+                overlapDays = getOverlapDays(mondayStr, startDateStr, endDateStr);
+            }
+            if (overlapDays <= 0) continue;
+            
+            weeklyData.forEach(row => {
+                let st = row['sap'] || row['storecode'] || row['nickname'] || row['storename'] || row['store'] || row['mach'] || row['tencuahang'];
+                let pr = row['tnsnphmwm'] || row['tensanphamwm'] || row['tnsnphm'] || row['articlename'] || row['article'] || row['tensanpham'] || row['productname'];
+                if (!pr) return;
+                
+                let productName = getGlobalNormalizedProduct(pr);
+                if (!productName) return;
+                
+                if (st) {
+                    let sap = extractSAP(st);
+                    if (sap && isNaN(parseInt(sap))) {
+                        let lookedUp = globalReverseStoreNamesMap.get(normalizeKey(st));
+                        if (lookedUp) sap = lookedUp;
+                    }
+                    if (!sap) return;
+                    
+                    let rawDate = String(row['calendarday'] || row['date'] || row['ngay'] || '').trim();
+                    let includeRow = false;
+                    if (rawDate) {
+                        let ts = parseDateStrToTime(rawDate);
+                        if (ts > 0) {
+                            let tsStart = new Date(startDateStr).getTime();
+                            let tsEnd = new Date(endDateStr).getTime();
+                            if (ts >= tsStart && ts <= tsEnd) {
+                                includeRow = true;
+                            }
+                        }
+                    } else {
+                        includeRow = true;
+                    }
+                    
+                    if (includeRow) {
+                        let qty = Number(String(row['posquantity'] || row['sum'] || '0').replace(/,/g, ''));
+                        if (pr && String(pr).toLowerCase().includes('retail kg')) qty /= 1000;
+                        if (isNaN(qty)) return;
+                        
+                        let region = globalStoreRegionMap.get(sap) || 'Khác';
+                        let storeName = globalStoreNamesMap.get(sap) || sap;
+                        let key = `${region}_${sap}_${storeName}_${productName}`;
+                        
+                        if (!aggMap.has(key)) {
+                            aggMap.set(key, {
+                                region,
+                                sap,
+                                storeName,
+                                productName,
+                                orderDays: [0, 0, 0, 0, 0, 0, 0],
+                                totalOrderPcs: 0,
+                                totalOrderKg: 0,
+                                totalSalesPcs: 0,
+                                totalSalesKg: 0
+                            });
+                        }
+                        
+                        let data = aggMap.get(key);
+                        if (!rawDate && filterMode === 'date-range') {
+                            data.totalSalesPcs += qty * (overlapDays / 7);
+                        } else {
+                            data.totalSalesPcs += qty;
+                        }
+                    }
+                } else {
+                    Object.entries(row).forEach(([colKey, qtyVal]) => {
+                        let cKey = String(colKey).trim();
+                        if (!cKey) return;
+                        
+                        let sap = "";
+                        let sapMatch = cKey.match(/(\d{4,5})/);
+                        if (sapMatch && globalReverseStoreNamesMap.has(normalizeKey(sapMatch[1]))) {
+                            sap = globalReverseStoreNamesMap.get(normalizeKey(sapMatch[1]));
+                        } else {
+                            sap = globalReverseStoreNamesMap.get(normalizeKey(cKey));
+                        }
+                        
+                        if (sap) {
+                            let qty = Number(String(qtyVal || '0').replace(/,/g, ''));
+                            if (pr && String(pr).toLowerCase().includes('retail kg')) qty /= 1000;
+                            if (isNaN(qty) || qty === 0) return;
+                            
+                            let region = globalStoreRegionMap.get(sap) || 'Khác';
+                            let storeName = globalStoreNamesMap.get(sap) || sap;
+                            let key = `${region}_${sap}_${storeName}_${productName}`;
+                            
+                            if (!aggMap.has(key)) {
+                                aggMap.set(key, {
+                                    region,
+                                    sap,
+                                    storeName,
+                                    productName,
+                                    orderDays: [0, 0, 0, 0, 0, 0, 0],
+                                    totalOrderPcs: 0,
+                                    totalOrderKg: 0,
+                                    totalSalesPcs: 0,
+                                    totalSalesKg: 0
+                                });
+                            }
+                            
+                            let data = aggMap.get(key);
+                            data.totalSalesPcs += qty * (overlapDays / 7);
+                        }
+                    });
+                }
+            });
+        }
+        
+        let list = Array.from(aggMap.values());
+        list.forEach(item => {
+            let weightKG = getProductWeightKG(item.productName);
+            item.totalOrderKg = item.totalOrderPcs * weightKG;
+            item.totalSalesKg = item.totalSalesPcs * weightKG;
+        });
+        
+        currentWeeklyReviewList = list.filter(item => item.totalOrderPcs > 0 || item.totalSalesPcs > 0);
+        
+        // Sorting by SAP and CUSTOM_PRODUCT_ORDER
+        currentWeeklyReviewList.sort((a, b) => {
+            let sapCompare = String(a.sap).localeCompare(String(b.sap), undefined, { numeric: true });
+            if (sapCompare !== 0) return sapCompare;
+            
+            let idxA = CUSTOM_PRODUCT_ORDER.findIndex(p => p.toLowerCase() === String(a.productName).trim().toLowerCase());
+            let idxB = CUSTOM_PRODUCT_ORDER.findIndex(p => p.toLowerCase() === String(b.productName).trim().toLowerCase());
+            
+            idxA = idxA !== -1 ? idxA : 9999;
+            idxB = idxB !== -1 ? idxB : 9999;
+            
+            if (idxA !== idxB) return idxA - idxB;
+            return String(a.productName).localeCompare(String(b.productName), 'vi');
+        });
+
+        populateWeeklyRegionDropdown(currentWeeklyReviewList);
+        filterWeeklyReviewTable();
+        
+    } catch (err) {
+        console.error("Lỗi tổng hợp báo cáo tuần:", err);
+        tbody.innerHTML = `<tr><td colspan="15" style="text-align:center; padding: 2rem; color: var(--danger);">Có lỗi xảy ra khi tổng hợp dữ liệu: ${err.message}</td></tr>`;
+    }
+}
+
+function populateWeeklyRegionDropdown(dataList) {
+    const selectEl = document.getElementById('weekly-filter-region');
+    if (!selectEl) return;
+    
+    let selectedVal = selectEl.value;
+    selectEl.innerHTML = '<option value="">🗺️ Tất cả Khu vực</option>';
+    
+    let regions = new Set();
+    dataList.forEach(item => {
+        if (item.region) regions.add(item.region);
+    });
+    
+    let sortedRegions = Array.from(regions).sort((a, b) => a.localeCompare(b, 'vi'));
+    sortedRegions.forEach(reg => {
+        let opt = document.createElement('option');
+        opt.value = reg;
+        opt.text = reg;
+        selectEl.appendChild(opt);
+    });
+    
+    if (regions.has(selectedVal)) {
+        selectEl.value = selectedVal;
+    }
+}
+
+function renderWeeklyReviewTable(dataList) {
+    const tbody = document.getElementById('weekly-review-tbody');
+    tbody.innerHTML = '';
+    
+    if (dataList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="15" style="text-align:center; padding: 2rem; color: var(--text-muted);">Không có dữ liệu trong khoảng thời gian được chọn.</td></tr>`;
+        document.getElementById('btn-export-weekly').style.display = 'none';
+        return;
+    }
+    
+    document.getElementById('btn-export-weekly').style.display = 'inline-block';
+    
+    // Thêm dòng TỔNG CỘNG ở đầu bảng review tuần
+    let totalOrderDays = [0, 0, 0, 0, 0, 0, 0];
+    let totalOrderPcs = 0;
+    let totalOrderKg = 0;
+    let totalSalesPcs = 0;
+    let totalSalesKg = 0;
+    
+    dataList.forEach(item => {
+        for (let i = 0; i < 7; i++) {
+            totalOrderDays[i] += item.orderDays[i] || 0;
+        }
+        totalOrderPcs += item.totalOrderPcs || 0;
+        totalOrderKg += item.totalOrderKg || 0;
+        totalSalesPcs += item.totalSalesPcs || 0;
+        totalSalesKg += item.totalSalesKg || 0;
+    });
+    
+    let totalTr = document.createElement('tr');
+    totalTr.style.fontWeight = 'bold';
+    totalTr.style.background = 'rgba(255, 255, 255, 0.15)';
+    totalTr.style.borderBottom = '2px solid var(--primary)';
+    
+    let totalOrderTds = '';
+    for (let i = 0; i < 7; i++) {
+        let val = totalOrderDays[i];
+        totalOrderTds += `<td style="text-align: center; color: var(--primary); font-weight: bold;">${val > 0 ? val.toLocaleString() : '-'}</td>`;
+    }
+    
+    totalTr.innerHTML = `
+        <td colspan="4" style="text-align: center; color: var(--text-main); font-weight: bold; font-size: 1.05em;">TỔNG CỘNG</td>
+        ${totalOrderTds}
+        <td style="text-align: center; color: var(--primary); font-weight: bold;">${totalOrderPcs > 0 ? totalOrderPcs.toLocaleString() : '-'}</td>
+        <td style="text-align: center; color: var(--primary); font-weight: bold;">${totalOrderKg > 0 ? totalOrderKg.toFixed(2) : '-'}</td>
+        <td style="text-align: center; color: var(--success); font-weight: bold;">${totalSalesPcs > 0 ? totalSalesPcs.toLocaleString() : '-'}</td>
+        <td style="text-align: center; color: var(--success); font-weight: bold;">${totalSalesKg > 0 ? totalSalesKg.toFixed(2) : '-'}</td>
+    `;
+    tbody.appendChild(totalTr);
+
+    // Thêm các dòng chi tiết phía sau
+    dataList.forEach(item => {
+        let tr = document.createElement('tr');
+        
+        let orderTds = '';
+        for (let i = 0; i < 7; i++) {
+            let val = item.orderDays[i];
+            orderTds += `<td style="text-align: center;">${val > 0 ? val.toLocaleString() : '-'}</td>`;
+        }
+        
+        tr.innerHTML = `
+            <td>${item.region}</td>
+            <td>${item.sap}</td>
+            <td>${item.storeName}</td>
+            <td>${item.productName}</td>
+            ${orderTds}
+            <td style="text-align: center; font-weight: bold; color: var(--primary);">${item.totalOrderPcs > 0 ? item.totalOrderPcs.toLocaleString() : '-'}</td>
+            <td style="text-align: center; font-weight: bold; color: var(--primary);">${item.totalOrderKg > 0 ? item.totalOrderKg.toFixed(2) : '-'}</td>
+            <td style="text-align: center; font-weight: bold; color: var(--success);">${item.totalSalesPcs > 0 ? item.totalSalesPcs.toLocaleString() : '-'}</td>
+            <td style="text-align: center; font-weight: bold; color: var(--success);">${item.totalSalesKg > 0 ? item.totalSalesKg.toFixed(2) : '-'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function filterWeeklyReviewTable() {
+    let regionVal = document.getElementById('weekly-filter-region') ? document.getElementById('weekly-filter-region').value : '';
+    let storeQuery = document.getElementById('weekly-search-store') ? removeAccents(document.getElementById('weekly-search-store').value.toLowerCase().trim()) : '';
+    let productQuery = document.getElementById('weekly-search-product') ? removeAccents(document.getElementById('weekly-search-product').value.toLowerCase().trim()) : '';
+    
+    let filtered = currentWeeklyReviewList.filter(item => {
+        if (regionVal && item.region !== regionVal) return false;
+        
+        if (storeQuery) {
+            let sap = item.sap.toLowerCase();
+            let store = removeAccents(item.storeName.toLowerCase());
+            if (!sap.includes(storeQuery) && !store.includes(storeQuery)) return false;
+        }
+        
+        if (productQuery) {
+            let prod = removeAccents(item.productName.toLowerCase());
+            if (!prod.includes(productQuery)) return false;
+        }
+        
+        return true;
+    });
+    
+    currentWeeklyFilteredList = filtered;
+    renderWeeklyReviewTable(filtered);
+}
+
+function exportWeeklyReviewToExcel() {
+    if (currentWeeklyFilteredList.length === 0) {
+        alert("Không có dữ liệu để xuất Excel!");
+        return;
+    }
+    
+    let aoa = [];
+    aoa.push([
+        "Khu Vực", "Mã SAP", "Tên Cửa Hàng", "Tên Sản Phẩm",
+        "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ Nhật",
+        "Tổng Đặt (Pcs)", "Tổng Đặt (Kg)", "Tổng Bán (Pcs)", "Tổng Bán (Kg)"
+    ]);
+    
+    // Tính toán dòng TỔNG CỘNG trước
+    let totalOrderDays = [0, 0, 0, 0, 0, 0, 0];
+    let totalOrderPcs = 0;
+    let totalOrderKg = 0;
+    let totalSalesPcs = 0;
+    let totalSalesKg = 0;
+    
+    currentWeeklyFilteredList.forEach(item => {
+        for (let i = 0; i < 7; i++) {
+            totalOrderDays[i] += item.orderDays[i] || 0;
+        }
+        totalOrderPcs += item.totalOrderPcs || 0;
+        totalOrderKg += item.totalOrderKg || 0;
+        totalSalesPcs += item.totalSalesPcs || 0;
+        totalSalesKg += item.totalSalesKg || 0;
+    });
+    
+    aoa.push([
+        "TỔNG CỘNG",
+        "",
+        "",
+        "",
+        totalOrderDays[0] || 0,
+        totalOrderDays[1] || 0,
+        totalOrderDays[2] || 0,
+        totalOrderDays[3] || 0,
+        totalOrderDays[4] || 0,
+        totalOrderDays[5] || 0,
+        totalOrderDays[6] || 0,
+        totalOrderPcs || 0,
+        totalOrderKg || 0,
+        totalSalesPcs || 0,
+        totalSalesKg || 0
+    ]);
+
+    // Thêm các dòng chi tiết phía sau
+    currentWeeklyFilteredList.forEach(item => {
+        aoa.push([
+            item.region,
+            item.sap,
+            item.storeName,
+            item.productName,
+            item.orderDays[0] || 0,
+            item.orderDays[1] || 0,
+            item.orderDays[2] || 0,
+            item.orderDays[3] || 0,
+            item.orderDays[4] || 0,
+            item.orderDays[5] || 0,
+            item.orderDays[6] || 0,
+            item.totalOrderPcs || 0,
+            item.totalOrderKg || 0,
+            item.totalSalesPcs || 0,
+            item.totalSalesKg || 0
+        ]);
+    });
+    
+    const worksheet = XLSX.utils.aoa_to_sheet(aoa);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Tong_Hop_Tuan");
+    
+    let titleStr = "Tong_Hop_Tuan";
+    let isWeekMode = document.querySelector('input[name="filter-mode"]:checked').value === 'week';
+    if (isWeekMode) {
+        let selectEl = document.getElementById('weekly-review-select');
+        if (selectEl && selectEl.value) {
+            let label = selectEl.options[selectEl.selectedIndex].text;
+            titleStr = "Tong_Hop_" + label.replace(/[^a-zA-Z0-9]/g, "_");
+        }
+    } else {
+        let startStr = document.getElementById('weekly-start-date').value;
+        let endStr = document.getElementById('weekly-end-date').value;
+        if (startStr && endStr) {
+            titleStr = `Tong_Hop_${startStr}_to_${endStr}`;
+        }
+    }
+    
+    let exportName = `${titleStr}.xlsx`;
+    
+    try {
+        let wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'binary' });
+        function s2ab(s) {
+            let buf = new ArrayBuffer(s.length);
+            let view = new Uint8Array(buf);
+            for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
+            return buf;
+        }
+        let blob = new Blob([s2ab(wbout)], { type: "application/octet-stream" });
+        let url = URL.createObjectURL(blob);
+        let a = document.createElement("a");
+        document.body.appendChild(a);
+        a.href = url;
+        a.download = exportName;
+        a.click();
+        setTimeout(() => {
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }, 0);
+    } catch (e) {
+        console.error("Lỗi xuất Excel tuần:", e);
+        alert("Lỗi xuất Excel: " + e.message);
+    }
+}
+
+// Event Listeners for Weekly Review
+const navWeeklyReview = document.getElementById('nav-weekly-review');
+const weeklyReviewSelect = document.getElementById('weekly-review-select');
+const btnLoadDateRange = document.getElementById('btn-load-date-range');
+const btnExportWeekly = document.getElementById('btn-export-weekly');
+const weeklyFilterRegion = document.getElementById('weekly-filter-region');
+const weeklySearchStore = document.getElementById('weekly-search-store');
+const weeklySearchProduct = document.getElementById('weekly-search-product');
+
+if (navWeeklyReview) {
+    navWeeklyReview.addEventListener('click', (e) => {
+        e.preventDefault();
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        navWeeklyReview.classList.add('active');
+        isHistoryView = false;
+        isArchiveView = false;
+        
+        document.querySelector('.upload-section').style.display = 'none';
+        document.getElementById('archive-selector-container').style.display = 'none';
+        document.getElementById('results-section').style.display = 'none';
+        document.getElementById('weekly-review-container').style.display = 'block';
+        
+        // Initialize Default Values
+        let today = new Date();
+        let sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        
+        document.getElementById('weekly-start-date').value = formatDateStr(sevenDaysAgo);
+        document.getElementById('weekly-end-date').value = formatDateStr(today);
+        
+        // Populate Weeks Dropdown
+        populateWeeksDropdown();
+        
+        // Auto Load Current Week
+        if (weeklyReviewSelect && weeklyReviewSelect.options.length > 1) {
+            weeklyReviewSelect.selectedIndex = 1;
+            let val = JSON.parse(weeklyReviewSelect.value);
+            loadWeeklyReview(val.start, val.end, 'week');
+        } else {
+            let start = document.getElementById('weekly-start-date').value;
+            let end = document.getElementById('weekly-end-date').value;
+            loadWeeklyReview(start, end, 'date-range');
+        }
+    });
+}
+
+function populateWeeksDropdown() {
+    const selectEl = document.getElementById('weekly-review-select');
+    if (!selectEl) return;
+    
+    selectEl.innerHTML = '<option value="">-- Chọn Tuần --</option>';
+    let weeks = getWeeksOfYear();
+    weeks.forEach(w => {
+        let opt = document.createElement('option');
+        opt.value = JSON.stringify({ start: w.mondayStr, end: w.sundayStr });
+        opt.text = w.label;
+        selectEl.appendChild(opt);
+    });
+}
+
+// Handle Mode Selector Switch
+document.querySelectorAll('input[name="filter-mode"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+        let mode = e.target.value;
+        if (mode === 'week') {
+            document.getElementById('week-selector-wrap').style.display = 'flex';
+            document.getElementById('date-range-selector-wrap').style.display = 'none';
+            if (weeklyReviewSelect && weeklyReviewSelect.value) {
+                let val = JSON.parse(weeklyReviewSelect.value);
+                loadWeeklyReview(val.start, val.end, 'week');
+            }
+        } else {
+            document.getElementById('week-selector-wrap').style.display = 'none';
+            document.getElementById('date-range-selector-wrap').style.display = 'flex';
+            let start = document.getElementById('weekly-start-date').value;
+            let end = document.getElementById('weekly-end-date').value;
+            if (start && end) {
+                loadWeeklyReview(start, end, 'date-range');
+            }
+        }
+    });
+});
+
+if (weeklyReviewSelect) {
+    weeklyReviewSelect.addEventListener('change', () => {
+        if (weeklyReviewSelect.value) {
+            let val = JSON.parse(weeklyReviewSelect.value);
+            loadWeeklyReview(val.start, val.end, 'week');
+        }
+    });
+}
+
+if (btnLoadDateRange) {
+    btnLoadDateRange.addEventListener('click', () => {
+        let start = document.getElementById('weekly-start-date').value;
+        let end = document.getElementById('weekly-end-date').value;
+        if (!start || !end) {
+            alert("Vui lòng nhập đầy đủ Từ ngày và Đến ngày!");
+            return;
+        }
+        loadWeeklyReview(start, end, 'date-range');
+    });
+}
+
+if (weeklyFilterRegion) {
+    weeklyFilterRegion.addEventListener('change', filterWeeklyReviewTable);
+}
+if (weeklySearchStore) {
+    weeklySearchStore.addEventListener('input', filterWeeklyReviewTable);
+}
+if (weeklySearchProduct) {
+    weeklySearchProduct.addEventListener('input', filterWeeklyReviewTable);
+}
+
+if (btnExportWeekly) {
+    btnExportWeekly.addEventListener('click', exportWeeklyReviewToExcel);
+}

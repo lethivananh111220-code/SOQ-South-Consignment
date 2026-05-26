@@ -24,7 +24,9 @@
             </div>
             <nav class="nav-menu">
                 <a href="#" class="nav-item active" id="nav-dashboard">Bảng tính SOQ</a>
-                <a href="#" class="nav-item" id="nav-history">Lịch sử tải lên</a>
+                <a href="#" class="nav-item" id="nav-history">Đặt đơn hàng</a>
+                <a href="#" class="nav-item" id="nav-archive">Lịch sử đặt hàng</a>
+                <a href="#" class="nav-item" id="nav-weekly-review">Tổng hợp tuần</a>
                 <a href="#" class="nav-item" id="nav-settings">Cài đặt</a>
             </nav>
             <div class="user-profile">
@@ -81,6 +83,14 @@
                         <label for="file-weekly" class="btn-upload">Tải lên file Weekly Sales</label>
                         <span class="file-status" id="status-weekly">Chưa có file</span>
                     </div>
+
+                    <div class="upload-card">
+                        <h3>4C. Xu hướng bán (Trend)</h3>
+                        <p>File cập nhật các món bán tốt hoặc ngưng đặt tháng gần nhất</p>
+                        <input type="file" id="file-trend_report" class="file-input" accept=".csv, .xlsx, .xls">
+                        <label for="file-trend_report" class="btn-upload">Tải lên file Xu hướng bán</label>
+                        <span class="file-status" id="status-trend_report">Tùy chọn</span>
+                    </div>
                     
                      <div class="upload-card">
                         <h3>5. Mapping Sản Phẩm</h3>
@@ -118,6 +128,94 @@
                 </div>
             </section>
 
+            <!-- Archive Selector (Only visible when on Archive page) -->
+            <div id="archive-selector-container" style="display: none; background: var(--bg-card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 2rem; text-align: center; box-shadow: var(--shadow);">
+                <label style="font-weight: 600; color: var(--text-main); margin-right: 15px;">📅 Chọn ngày lưu trữ để xem lại:</label>
+                <select id="archive-date-select" style="padding: 10px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(15, 23, 42, 0.6); color: white; font-weight: bold; font-size: 1.05em; cursor: pointer; outline: none;">
+                    <option value="">-- Chọn Ngày --</option>
+                </select>
+                <button id="btn-load-archive" class="btn-primary" style="margin-left: 15px; padding: 10px 20px; font-size: 0.95em;">Tải dữ liệu</button>
+            </div>
+
+            <!-- Weekly Review Container (Only visible when on Weekly Review page) -->
+            <div id="weekly-review-container" style="display: none; background: var(--bg-card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 2rem; box-shadow: var(--shadow);">
+                <div style="display: flex; gap: 20px; align-items: center; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 15px; flex-wrap: wrap;">
+                    <span style="font-weight: bold; color: var(--text-main);">🔍 Chế độ lọc:</span>
+                    <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; color: var(--text-main);">
+                        <input type="radio" name="filter-mode" value="week" checked style="cursor: pointer;"> Xem theo số Tuần
+                    </label>
+                    <label style="cursor: pointer; display: flex; align-items: center; gap: 5px; color: var(--text-main);">
+                        <input type="radio" name="filter-mode" value="date-range" style="cursor: pointer;"> Xem theo Khoảng ngày
+                    </label>
+                </div>
+
+                <div id="week-selector-wrap" style="display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem;">
+                    <label style="font-weight: 600; color: var(--text-main);">📅 Chọn Tuần:</label>
+                    <select id="weekly-review-select" style="padding: 10px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(15, 23, 42, 0.6); color: white; font-weight: bold; cursor: pointer; outline: none; width: 320px;">
+                        <option value="">-- Chọn Tuần --</option>
+                    </select>
+                </div>
+
+                <div id="date-range-selector-wrap" style="display: none; align-items: center; gap: 15px; margin-bottom: 1.5rem; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label style="font-weight: 600; color: var(--text-main);">Từ ngày:</label>
+                        <input type="date" id="weekly-start-date" style="padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: #fff; color: #333; cursor: pointer; outline: none; font-weight: bold;">
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label style="font-weight: 600; color: var(--text-main);">Đến ngày:</label>
+                        <input type="date" id="weekly-end-date" style="padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: #fff; color: #333; cursor: pointer; outline: none; font-weight: bold;">
+                    </div>
+                    <button id="btn-load-date-range" class="btn-primary" style="padding: 8px 20px; font-size: 0.95em;">Xem báo cáo</button>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 15px;">
+                    <h3 id="weekly-review-title" style="margin: 0; color: var(--primary);">Kết quả Tổng Hợp</h3>
+                    <div style="display: flex; gap: 10px;">
+                        <button id="btn-export-weekly" class="btn-primary" style="background: #107c41; padding: 10px 20px; font-size: 0.95em; display: none;">📥 Xuất Tổng Tuần</button>
+                        <button class="btn-secondary" id="btn-toggle-sidebar-weekly" style="padding: 10px 20px; font-size: 0.95em; display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <span>◄</span> Ẩn Menu trái
+                        </button>
+                    </div>
+                </div>
+
+                <div class="weekly-filters-row" style="display: flex; gap: 15px; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center;">
+                    <select id="weekly-filter-region" style="padding: 10px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(15, 23, 42, 0.6); color: white; outline: none; cursor: pointer; min-width: 180px;">
+                        <option value="">🗺️ Tất cả Khu vực</option>
+                    </select>
+                    <input type="search" id="weekly-search-store" placeholder="🔍 Tìm theo Cửa hàng hoặc SAP..." autocomplete="off" 
+                           style="padding: 10px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white; min-width: 250px; outline: none; flex: 1;">
+                    <input type="search" id="weekly-search-product" placeholder="🔍 Tìm theo Tên sản phẩm..." autocomplete="off" 
+                           style="padding: 10px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white; min-width: 250px; outline: none; flex: 1;">
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table" id="weekly-review-table">
+                        <thead>
+                            <tr>
+                                <th>Khu Vực</th>
+                                <th>Mã SAP</th>
+                                <th>Tên Cửa Hàng</th>
+                                <th>Tên Sản Phẩm</th>
+                                <th style="text-align: center;">T2</th>
+                                <th style="text-align: center;">T3</th>
+                                <th style="text-align: center;">T4</th>
+                                <th style="text-align: center;">T5</th>
+                                <th style="text-align: center;">T6</th>
+                                <th style="text-align: center;">T7</th>
+                                <th style="text-align: center;">CN</th>
+                                <th style="text-align: center; color: var(--primary);">Tổng Đặt (Pcs)</th>
+                                <th style="text-align: center; color: var(--primary);">Tổng Đặt (Kg)</th>
+                                <th style="text-align: center; color: var(--success);">Tổng Bán (Pcs)</th>
+                                <th style="text-align: center; color: var(--success);">Tổng Bán (Kg)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="weekly-review-tbody">
+                            <!-- Data populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <section class="results-section" id="results-section" style="display: none;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
                     <h2 style="margin: 0;">Kết Quả Dự Báo</h2>
@@ -136,6 +234,12 @@
                 <div class="search-filters" style="display: flex; gap: 20px; margin-bottom: 1rem;">
                     <select id="filter-region" style="padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white; flex: 1; outline: none; font-size: 16px; cursor: pointer; max-width: 200px;">
                         <option value="">🗺️ Tất cả Khu vực</option>
+                    </select>
+                    <select id="filter-trend-action" style="padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white; flex: 1; outline: none; font-size: 16px; cursor: pointer; max-width: 200px;">
+                        <option value="">📈 Tất cả Xu hướng</option>
+                        <option value="bantot">🟢 Bán tốt</option>
+                        <option value="ngunggiao">🔴 Ngưng đặt / Ngừng giao</option>
+                        <option value="trong">⚪ Trống</option>
                     </select>
                     <input type="search" id="search-store" placeholder="🔍 Tìm theo Tên cửa hàng hoặc SAP..." autocomplete="off" autocorrect="off" spellcheck="false" inputmode="search" enterkeyhint="search" style="padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white; flex: 1; outline: none; font-size: 16px;">
                     <input type="search" id="search-product" placeholder="🔍 Tìm theo Tên sản phẩm..." autocomplete="off" autocorrect="off" spellcheck="false" inputmode="search" enterkeyhint="search" style="padding: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.2); color: white; flex: 1; outline: none; font-size: 16px;">
@@ -156,8 +260,9 @@
                                 <th class="sortable" data-sort="demand">Total Demand <span class="sort-icon"></span></th>
                                 <th class="sortable" data-sort="inventory">Tồn (Inv) <span class="sort-icon"></span></th>
                                 <th class="sortable" data-sort="input">Nhập (Input) <span class="sort-icon"></span></th>
-                                <th class="sortable" data-sort="penalty">Giảm trừ (Penalty) <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="penalty">Giảm trừ <span class="sort-icon"></span></th>
                                 <th class="sortable" data-sort="soq" title="Tổng hợp (Chưa làm tròn + phạt)">SOQ (GỢI Ý) <span class="sort-icon"></span></th>
+                                <th class="sortable" data-sort="xu_huong" title="Xu hướng bán tốt / Ngưng đặt tháng gần nhất">Xu hướng <span class="sort-icon"></span></th>
                                 <th class="history-col" style="display:none; color: var(--primary);">SL ĐẶT</th>
                                 <th class="history-col" style="display:none; color: var(--warning);">GHI CHÚ</th>
                             </tr>
