@@ -2784,8 +2784,28 @@ if (navHistory && navDashboard) {
     });
 
     const navArchive = document.getElementById('nav-archive');
-    const archiveDateSelect = document.getElementById('archive-date-select');
+    const archiveDateInput = document.getElementById('archive-date-input');
     const btnLoadArchive = document.getElementById('btn-load-archive');
+
+    function updateArchiveDayOfWeekBadge() {
+        const badge = document.getElementById('archive-day-of-week-badge');
+        if (badge && archiveDateInput) {
+            const dateStr = archiveDateInput.value;
+            if (dateStr) {
+                const date = new Date(dateStr);
+                if (!isNaN(date.getTime())) {
+                    const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+                    const dayOfWeek = days[date.getDay()];
+                    const parts = dateStr.split('-');
+                    const formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                    badge.textContent = `${dayOfWeek}, ${formattedDate}`;
+                    badge.style.display = 'inline-block';
+                    return;
+                }
+            }
+            badge.style.display = 'none';
+        }
+    }
 
     if (navArchive) {
         navArchive.addEventListener('click', (e) => {
@@ -2812,25 +2832,17 @@ if (navHistory && navDashboard) {
             tbody.innerHTML = '';
             document.getElementById('results-section').style.display = 'none';
             
-            // Thiết lập dropdown 7 ngày gần nhất
-            if (archiveDateSelect) {
-                archiveDateSelect.innerHTML = '<option value="">-- Chọn Ngày --</option>';
+            // Thiết lập mặc định ngày hôm qua cho date input
+            if (archiveDateInput) {
                 const today = new Date();
-                for (let i = 1; i <= 7; i++) {
-                    const prevDate = new Date(today);
-                    prevDate.setDate(today.getDate() - i);
-                    
-                    const year = prevDate.getFullYear();
-                    const month = String(prevDate.getMonth() + 1).padStart(2, '0');
-                    const day = String(prevDate.getDate()).padStart(2, '0');
-                    const dateStr = `${year}-${month}-${day}`;
-                    const displayStr = `${day}/${month}/${year}`;
-                    
-                    let opt = document.createElement('option');
-                    opt.value = dateStr;
-                    opt.text = displayStr;
-                    archiveDateSelect.appendChild(opt);
-                }
+                const yesterday = new Date(today);
+                yesterday.setDate(today.getDate() - 1);
+                const year = yesterday.getFullYear();
+                const month = String(yesterday.getMonth() + 1).padStart(2, '0');
+                const day = String(yesterday.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+                archiveDateInput.value = dateStr;
+                updateArchiveDayOfWeekBadge();
             }
             
             let titleSpan = document.querySelector('.results-section h2');
@@ -2839,7 +2851,7 @@ if (navHistory && navDashboard) {
     }
 
     const loadArchiveData = async () => {
-        const dateStr = archiveDateSelect.value;
+        const dateStr = archiveDateInput ? archiveDateInput.value : '';
         if (!dateStr) {
             alert("Vui lòng chọn ngày lưu trữ!");
             return;
@@ -2895,8 +2907,11 @@ if (navHistory && navDashboard) {
     if (btnLoadArchive) {
         btnLoadArchive.addEventListener('click', loadArchiveData);
     }
-    if (archiveDateSelect) {
-        archiveDateSelect.addEventListener('change', loadArchiveData);
+    if (archiveDateInput) {
+        archiveDateInput.addEventListener('change', () => {
+            updateArchiveDayOfWeekBadge();
+            loadArchiveData();
+        });
     }
 }
 
@@ -3369,7 +3384,7 @@ function renderWeeklyReviewTable(dataList) {
     tbody.innerHTML = '';
     
     if (dataList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="15" style="text-align:center; padding: 2rem; color: var(--text-muted);">Không có dữ liệu trong khoảng thời gian được chọn.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="16" style="text-align:center; padding: 2rem; color: var(--text-muted);">Không có dữ liệu trong khoảng thời gian được chọn.</td></tr>`;
         document.getElementById('btn-export-weekly').style.display = 'none';
         return;
     }
@@ -3393,6 +3408,15 @@ function renderWeeklyReviewTable(dataList) {
         totalSalesKg += item.totalSalesKg || 0;
     });
     
+    let totalDiffPcs = totalSalesPcs - totalOrderPcs;
+    let totalDiffKg = totalSalesKg - totalOrderKg;
+    
+    let diffPcsColor = totalDiffPcs > 0 ? 'var(--success)' : (totalDiffPcs < 0 ? 'var(--danger)' : 'var(--text-muted)');
+    let diffPcsText = totalDiffPcs > 0 ? '+' + totalDiffPcs.toLocaleString() : (totalDiffPcs < 0 ? totalDiffPcs.toLocaleString() : '-');
+    
+    let diffKgColor = totalDiffKg > 0 ? 'var(--success)' : (totalDiffKg < 0 ? 'var(--danger)' : 'var(--text-muted)');
+    let diffKgText = totalDiffKg > 0 ? '+' + totalDiffKg.toFixed(2) : (totalDiffKg < 0 ? totalDiffKg.toFixed(2) : '-');
+    
     let totalTr = document.createElement('tr');
     totalTr.style.fontWeight = 'bold';
     totalTr.style.background = 'rgba(255, 255, 255, 0.15)';
@@ -3405,12 +3429,14 @@ function renderWeeklyReviewTable(dataList) {
     }
     
     totalTr.innerHTML = `
-        <td colspan="4" style="text-align: center; color: var(--text-main); font-weight: bold; font-size: 1.05em;">TỔNG CỘNG</td>
+        <td colspan="3" style="text-align: center; color: var(--text-main); font-weight: bold; font-size: 1.05em;">TỔNG CỘNG</td>
         ${totalOrderTds}
         <td style="text-align: center; color: var(--primary); font-weight: bold;">${totalOrderPcs > 0 ? totalOrderPcs.toLocaleString() : '-'}</td>
         <td style="text-align: center; color: var(--primary); font-weight: bold;">${totalOrderKg > 0 ? totalOrderKg.toFixed(2) : '-'}</td>
         <td style="text-align: center; color: var(--success); font-weight: bold;">${totalSalesPcs > 0 ? totalSalesPcs.toLocaleString() : '-'}</td>
         <td style="text-align: center; color: var(--success); font-weight: bold;">${totalSalesKg > 0 ? totalSalesKg.toFixed(2) : '-'}</td>
+        <td style="text-align: center; color: ${diffPcsColor}; font-weight: bold;">${diffPcsText}</td>
+        <td style="text-align: center; color: ${diffKgColor}; font-weight: bold;">${diffKgText}</td>
     `;
     tbody.appendChild(totalTr);
 
@@ -3424,8 +3450,16 @@ function renderWeeklyReviewTable(dataList) {
             orderTds += `<td style="text-align: center;">${val > 0 ? val.toLocaleString() : '-'}</td>`;
         }
         
+        let diffPcs = (item.totalSalesPcs || 0) - (item.totalOrderPcs || 0);
+        let diffKg = (item.totalSalesKg || 0) - (item.totalOrderKg || 0);
+        
+        let diffPcsColor = diffPcs > 0 ? 'var(--success)' : (diffPcs < 0 ? 'var(--danger)' : 'var(--text-muted)');
+        let diffPcsText = diffPcs > 0 ? '+' + diffPcs.toLocaleString() : (diffPcs < 0 ? diffPcs.toLocaleString() : '-');
+        
+        let diffKgColor = diffKg > 0 ? 'var(--success)' : (diffKg < 0 ? 'var(--danger)' : 'var(--text-muted)');
+        let diffKgText = diffKg > 0 ? '+' + diffKg.toFixed(2) : (diffKg < 0 ? diffKg.toFixed(2) : '-');
+        
         tr.innerHTML = `
-            <td>${item.region}</td>
             <td>${item.sap}</td>
             <td>${item.storeName}</td>
             <td>${item.productName}</td>
@@ -3434,6 +3468,8 @@ function renderWeeklyReviewTable(dataList) {
             <td style="text-align: center; font-weight: bold; color: var(--primary);">${item.totalOrderKg > 0 ? item.totalOrderKg.toFixed(2) : '-'}</td>
             <td style="text-align: center; font-weight: bold; color: var(--success);">${item.totalSalesPcs > 0 ? item.totalSalesPcs.toLocaleString() : '-'}</td>
             <td style="text-align: center; font-weight: bold; color: var(--success);">${item.totalSalesKg > 0 ? item.totalSalesKg.toFixed(2) : '-'}</td>
+            <td style="text-align: center; font-weight: bold; color: ${diffPcsColor};">${diffPcsText}</td>
+            <td style="text-align: center; font-weight: bold; color: ${diffKgColor};">${diffKgText}</td>
         `;
         tbody.appendChild(tr);
     });

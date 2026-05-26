@@ -130,11 +130,12 @@
 
             <!-- Archive Selector (Only visible when on Archive page) -->
             <div id="archive-selector-container" style="display: none; background: var(--bg-card); padding: 20px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 2rem; text-align: center; box-shadow: var(--shadow);">
-                <label style="font-weight: 600; color: var(--text-main); margin-right: 15px;">📅 Chọn ngày lưu trữ để xem lại:</label>
-                <select id="archive-date-select" style="padding: 10px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(15, 23, 42, 0.6); color: white; font-weight: bold; font-size: 1.05em; cursor: pointer; outline: none;">
-                    <option value="">-- Chọn Ngày --</option>
-                </select>
-                <button id="btn-load-archive" class="btn-primary" style="margin-left: 15px; padding: 10px 20px; font-size: 0.95em;">Tải dữ liệu</button>
+                <div style="display: inline-flex; align-items: center; justify-content: center; gap: 15px; flex-wrap: wrap;">
+                    <label style="font-weight: 600; color: var(--text-main);">📅 Chọn ngày lưu trữ để xem lại:</label>
+                    <input type="date" id="archive-date-input" style="padding: 10px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(15, 23, 42, 0.6); color: white; color-scheme: dark; font-weight: bold; font-size: 1.05em; cursor: pointer; outline: none;">
+                    <span id="archive-day-of-week-badge" style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 8px 15px; border-radius: 8px; font-weight: 600; font-size: 1.05em; display: none;"></span>
+                    <button id="btn-load-archive" class="btn-primary" style="padding: 10px 20px; font-size: 0.95em;">Tải dữ liệu</button>
+                </div>
             </div>
 
             <!-- Weekly Review Container (Only visible when on Weekly Review page) -->
@@ -192,7 +193,6 @@
                     <table class="data-table" id="weekly-review-table">
                         <thead>
                             <tr>
-                                <th>Khu Vực</th>
                                 <th>Mã SAP</th>
                                 <th>Tên Cửa Hàng</th>
                                 <th>Tên Sản Phẩm</th>
@@ -207,6 +207,8 @@
                                 <th style="text-align: center; color: var(--primary);">Tổng Đặt (Kg)</th>
                                 <th style="text-align: center; color: var(--success);">Tổng Bán (Pcs)</th>
                                 <th style="text-align: center; color: var(--success);">Tổng Bán (Kg)</th>
+                                <th style="text-align: center; color: #ff9800;">Chênh lệch (Pcs)</th>
+                                <th style="text-align: center; color: #ff9800;">Chênh lệch (Kg)</th>
                             </tr>
                         </thead>
                         <tbody id="weekly-review-tbody">
