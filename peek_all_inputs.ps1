@@ -1,4 +1,4 @@
-Add-Type -AssemblyName System.IO.Compression.FileSystem
+﻿Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 function Peek-Excel($pattern) {
     Write-Output "--- Pattern: $pattern ---"
@@ -52,3 +52,4 @@ function Peek-Excel($pattern) {
 Peek-Excel "merchandiser_report*"
 Peek-Excel "Monthly revenue*"
 Peek-Excel "Sell-Report-Download*"
+

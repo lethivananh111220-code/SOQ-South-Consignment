@@ -1,0 +1,21 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <script>
+        window.errors = [];
+        window.onerror = function(msg, url, line, col, error) {
+            window.errors.push(msg + " at line " + line);
+        };
+    </script>
+    <script src="app.js"></script>
+</head>
+<body>
+    <div id="out">OK</div>
+    <script>
+        if (window.errors.length > 0) {
+            document.getElementById('out').innerHTML = window.errors.join('<br>');
+        }
+    </script>
+</body>
+</html>

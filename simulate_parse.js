@@ -1,4 +1,4 @@
-const XLSX = require('d:/DHF/QLKV_WM/web_app/node_modules/xlsx');
+﻿const XLSX = require('d:/DHF/SOQ - HÀ NỘI/web_app/node_modules/xlsx');
 
 function normalizeKey(key) {
     if (!key) return '';
@@ -11,7 +11,7 @@ function extractJsonDataCleanly(worksheet) {
     for (let i = 0; i < Math.min(20, rawArr.length); i++) {
         let r = rawArr[i];
         let validCols = r.filter(c => c !== null && c !== undefined && c !== "");
-        if (validCols.length >= 2 && r.some(c => typeof c === 'string' && (c.toUpperCase().includes('SAP') || c.toUpperCase().includes('STORE') || c.toUpperCase().includes('NICKNAME') || c.toUpperCase().includes('TÊN')))) {
+        if (validCols.length >= 2 && r.some(c => typeof c === 'string' && (c.toUpperCase().includes('SAP') || c.toUpperCase().includes('STORE') || c.toUpperCase().includes('NICKNAME') || c.toUpperCase().includes('TÃŠN')))) {
             headerIdx = i;
             break;
         }
@@ -46,7 +46,7 @@ function extractJsonDataCleanly(worksheet) {
     return json;
 }
 
-const file = 'D:/DHF/CONSIGNMENT/Don giao 0104/Lịch 2303-0504.xlsx'.replace(/Lịch/, 'L?ch'); // Handle the ?
+const file = 'D:/DHF/CONSIGNMENT/Don giao 0104/Lá»‹ch 2303-0504.xlsx'.replace(/Lá»‹ch/, 'L?ch'); // Handle the ?
 // Wait, I should find it properly
 const fs = require('fs');
 const path = require('path');
@@ -66,3 +66,4 @@ console.log('Store 6295:', JSON.stringify(s6295, null, 2));
 
 const s5591 = data.find(r => r.sap == '5591' || r.nickname == '5591' || r['46105'] == '5591');
 console.log('Store 5591:', JSON.stringify(s5591, null, 2));
+

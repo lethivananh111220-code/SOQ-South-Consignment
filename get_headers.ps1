@@ -1,6 +1,6 @@
-Add-Type -AssemblyName System.IO.Compression.FileSystem
+﻿Add-Type -AssemblyName System.IO.Compression.FileSystem
 
-$dir = "d:\DHF\QLKV_WM\ĐƠN ĐẶT HÀNG\Đơn đặt ngày 1903"
+$dir = "d:\DHF\QLKV_WM\ÄÆ N Äáº¶T HÃ€NG\ÄÆ¡n Ä‘áº·t ngÃ y 1903"
 $files = Get-ChildItem -Path $dir -Filter "*.xlsx"
 
 foreach ($f in $files) {
@@ -61,3 +61,4 @@ foreach ($f in $files) {
     }
     Write-Output ""
 }
+

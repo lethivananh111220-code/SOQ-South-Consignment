@@ -1,4 +1,4 @@
-Add-Type -AssemblyName System.IO.Compression.FileSystem
+﻿Add-Type -AssemblyName System.IO.Compression.FileSystem
 $file = Get-ChildItem -Path "D:\" -Filter "*2303-0504*" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 
 if ($file) {
@@ -74,3 +74,4 @@ if ($file) {
 } else {
     Write-Output "File not found"
 }
+

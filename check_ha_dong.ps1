@@ -1,11 +1,10 @@
-﻿Add-Type -AssemblyName System.IO.Compression.FileSystem
-$file = Get-ChildItem -Path "D:\" -Filter "*2303-0504*" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 
-if ($file) {
-    Write-Output "Processing: $($file.FullName)"
-    $tempPath = "d:\DHF\QLKV_WM\web_app\temp_peek_v2.xlsx"
-    Copy-Item $file.FullName $tempPath -Force
-    
+$filePath = Get-ChildItem "..\*1606\merchandiser_report_*.xlsx" | Select-Object -ExpandProperty FullName -First 1
+$tempPath = ".\temp_peek_1606_2.zip"
+
+if ($filePath) {
+    Copy-Item $filePath $tempPath -Force
     $zip = [System.IO.Compression.ZipFile]::OpenRead($tempPath)
     $sstEntry = $zip.GetEntry('xl/sharedStrings.xml')
     $strings = @()
@@ -17,11 +16,13 @@ if ($file) {
     $wsEntry = $zip.GetEntry('xl/worksheets/sheet1.xml')
     if (-not $wsEntry) { $wsEntry = $zip.GetEntry('xl/worksheets/Sheet1.xml') }
 
+    $dates = @{}
     if ($wsEntry) {
         $xml = [xml](New-Object System.IO.StreamReader($wsEntry.Open())).ReadToEnd()
-        $rows = $xml.worksheet.sheetData.row | Select-Object -First 10
+        $rows = $xml.worksheet.sheetData.row
         foreach ($r in $rows) {
             $vals = @()
+            $match = $false
             foreach ($c in $r.c) {
                 $val = ''
                 if ($c.t -eq 's') { 
@@ -30,14 +31,22 @@ if ($file) {
                 } else {
                     $val = $c.v
                 }
+                if ($val -match "1530") { $match = $true }
                 $vals += $val
             }
-            Write-Output "Row $($r.r): $($vals -join ' | ')"
+            if ($match) {
+                $dateVal = $vals[2]
+                if (-not $dates.ContainsKey($dateVal)) {
+                    $dates[$dateVal] = 1
+                } else {
+                    $dates[$dateVal]++
+                }
+            }
         }
+        $dates.GetEnumerator() | Sort-Object Name | ForEach-Object { Write-Output "$($_.Name): $($_.Value) products" }
     }
     $zip.Dispose()
     Remove-Item $tempPath -Force
 } else {
     Write-Output "File not found"
 }
-

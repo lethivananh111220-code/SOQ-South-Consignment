@@ -1,4 +1,4 @@
-Add-Type -AssemblyName System.IO.Compression.FileSystem
+﻿Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 function Get-XlsxRow {
     param($pathPattern)
@@ -39,3 +39,4 @@ Get-XlsxRow 'd:\DHF\QLKV_WM\*\*\W11*.xlsx'
 
 Write-Output '--- INPUT ---'
 Get-XlsxRow 'd:\DHF\QLKV_WM\*\*\Sell-Report*.xlsx'
+

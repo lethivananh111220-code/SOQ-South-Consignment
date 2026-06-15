@@ -1,11 +1,16 @@
+window.onerror = function(message, source, lineno, colno, error) {
+    alert("🚨 HỆ THỐNG PHÁT HIỆN LỖI:\n" + message + "\nTại dòng: " + lineno);
+    return false;
+};
+
 // --- CẤU HÌNH FIREBASE ---
 // Bạn cần lấy thông tin này từ Firebase Console (https://console.firebase.google.com/)
 const firebaseConfig = {
-    apiKey: "AIzaSyBHG5WoQVon5lgoyZNZ7agIVYJDjyZdRrY",
-    authDomain: "soq-south-consignment.firebaseapp.com",
-    databaseURL: "https://soq-south-consignment-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "soq-south-consignment",
-    storageBucket: "soq-south-consignment.firebasestorage.app",
+    apiKey: "AIzaSyAXLLILSZAmquyIJCXOS3z8ZiPIBvZoQio",
+    authDomain: "soq-north-consignment.firebaseapp.com",
+    databaseURL: "https://soq-north-consignment-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "soq-north-consignment",
+    storageBucket: "soq-north-consignment.firebasestorage.app",
     messagingSenderId: "491007756368",
     appId: "1:491007756368:web:8ea77f51a2a0f3b151a955",
     measurementId: "G-MSG7VKL5QQ"
@@ -133,7 +138,7 @@ function buildMetadataMaps() {
     
     if (datasets.schedule && datasets.schedule.length > 0) {
         datasets.schedule.forEach(row => {
-            let store = row['sap'] || row['storekey'] || row['storecode'] || row['makho'] || row['mach'] || row['mãkháchhàng'] || row['mãcửahàng'] || row['nickname'] || row['storename'] || row['store'];
+            let store = row['sap'] || row['storekey'] || row['storecode'] || row['makho'] || row['mach'] || row['mãkháchhàng'] || row['mãcửahàng'] || row['nickname'] || row['storename'] || row['store'] || row['__EMPTY'] || row['SAP'];
             if (!store) return;
             let storeID = extractSAP(store);
             let region = String(row['khuvuc'] || row['khuvực'] || row['region'] || 'Khác').trim();
@@ -383,11 +388,28 @@ function extractJsonDataCleanly(worksheet) {
         }
     }
 
-    const headersRaw = rawArr[headerIdx] || [];
-    const headersPrefix = headerIdx > 0 ? (rawArr[headerIdx - 1] || []) : [];
+    const headersRaw = [...(rawArr[headerIdx] || [])];
+    let headersPrefix = headerIdx > 0 ? (rawArr[headerIdx - 1] || []) : [];
     
+    // CUSTOM FIX: Lấy "Ngày giao hàng" từ dòng đầu tiên (dòng 1) cho file Lịch giao hàng
+    if (rawArr[0] && rawArr[0].some(c => typeof c === 'string' && c.toLowerCase().includes('ngày giao hàng'))) {
+        let maxLen = Math.max(headersRaw.length, rawArr[0].length);
+        for (let j = 0; j < maxLen; j++) {
+            let topCell = rawArr[0][j];
+            if (topCell && typeof topCell === 'string' && !topCell.toLowerCase().includes('ngày giao hàng')) {
+                headersRaw[j] = topCell;
+            }
+        }
+        headersPrefix = []; // Xóa prefix để tránh việc nối chuỗi ("Thứ 2" + "01-Thg6")
+    }
+
     let headers = headersRaw.map((h, j) => {
         let prefix = headersPrefix[j] ? String(headersPrefix[j]).trim() + '_' : '';
+        // Bỏ qua prefix nếu bản thân ô tiêu đề đã là định dạng ngày tháng rõ ràng
+        let hStr = String(h);
+        if (hStr.match(/^\d{4}-\d{2}-\d{2}/) || hStr.match(/^\d{1,2}[/-]\d{1,2}/) || hStr.toLowerCase().match(/^\d{1,2}\s*[-_]?\s*(?:thg|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/)) {
+            prefix = '';
+        }
         return normalizeKey(prefix + h);
     });
     
@@ -395,6 +417,7 @@ function extractJsonDataCleanly(worksheet) {
     let numericHeadersCount = headersRaw.filter(h => typeof h === 'number' && h > 40000).length;
     // Tăng cường kiểm tra cả headersPrefix nếu có
     if (headersPrefix.length > 0) numericHeadersCount += headersPrefix.filter(h => typeof h === 'number' && h > 40000).length;
+
 
     if (numericHeadersCount > 5) {
         // Đây là dạng file Lịch Matrix. Ép các cột cố định (0: Type, 1: SAP, 4: Name)
@@ -705,6 +728,12 @@ async function loadFromDB(key) {
                     await deleteFromDB(key);
                     return { invalidated: true, reason: "sang thứ 3 tuần mới" };
                 }
+            } else if (key === 'soq_latest_array') {
+                // Hết hạn bộ nhớ tạm khi sang ngày mới
+                if (dDate.getDate() !== nDate.getDate() || dDate.getMonth() !== nDate.getMonth() || dDate.getFullYear() !== nDate.getFullYear()) {
+                    await deleteFromDB(key);
+                    return { invalidated: true, reason: "đã sang ngày mới" };
+                }
             }
             return raw.data;
         }
@@ -953,7 +982,9 @@ btnCalculate.addEventListener('click', () => {
                 finalWkday = dTarget.getDay();
             }
 
+            // Theo yêu cầu mới: Ngày chọn trên giao diện CHÍNH LÀ Ngày Giao Hàng (Target Delivery)
             targetTimestamp = dTarget.getTime();
+            let orderTimestamp = targetTimestamp - 86400000; // Đẩy ngày lên đơn về trước 1 ngày
 
             // LƯU LẠI NGÀY GIAO HÀNG ĐỂ LƯU TRỮ
             const year = dTarget.getFullYear();
@@ -1043,7 +1074,7 @@ btnCalculate.addEventListener('click', () => {
 
         if (datasets.schedule && datasets.schedule.length > 0) {
             datasets.schedule.forEach(row => {
-                let store = row['sap'] || row['storekey'] || row['storecode'] || row['makho'] || row['mach'] || row['mãkháchhàng'] || row['mãcửahàng'] || row['nickname'] || row['storename'] || row['store'];
+                let store = row['sap'] || row['storekey'] || row['storecode'] || row['makho'] || row['mach'] || row['mãkháchhàng'] || row['mãcửahàng'] || row['nickname'] || row['storename'] || row['store'] || row['__EMPTY'] || row['SAP'];
                 if (!store) return;
 
                 let storeID = extractSAP(store);
@@ -1062,105 +1093,91 @@ btnCalculate.addEventListener('click', () => {
 
                     let possibleNextDeliveryTimestamps = [];
 
-                    // Khởi tạo biến kiểm tra Chức năng (Function) của Store
-                    let isMer = String(row['function'] || row['Function'] || row['chức năng'] || row['loại'] || '').trim().toLowerCase() === 'mer';
+                    // Đã bỏ dữ kiện khu vực và function theo yêu cầu mới
 
                     for (const [key, val] of Object.entries(row)) {
                         let k = String(key).trim();
                         let match = false;
                         let headerTs = 0;
 
-                        let headerWeekdayIdx = getWeekdayIdx(k);
-
-                        // Nếu Header file Lịch là THỨ (VD: Friday, T2)
-                        if (headerWeekdayIdx !== -1) {
-                            if (isTargetWeekday) {
-                                match = (headerWeekdayIdx === currentTargetNum);
-                            } else if (impliedWeekdayIdx !== -1) {
-                                match = (headerWeekdayIdx === impliedWeekdayIdx);
-                            }
-                        } else {
-                        // Xử lý Header phức hợp (vd: 01-Thg4_Wednesday) hoặc Header đơn thuần
                         let kClean = k.toLowerCase();
                         
-                        // Lấy số ngày của mục tiêu (VD: 1 hoặc 01)
-                        let tNum = new Date(targetTimestamp).getDate().toString();
-                        let tPadded = tNum.padStart(2, '0');
+                        // Cố gắng parse ngày từ tên cột đã được normalize (kClean bị loại bỏ ký tự đặc biệt)
+                        // Ví dụ: "20260608000000" (từ Date obj), "08062026" (từ text), "08thg6", "ngay11", "1104", "11"
+                        let matchYMD = kClean.match(/^(\d{4})(\d{2})(\d{2})(?:000000)?$/); // YYYYMMDD
+                        let matchDDMMYYYY = kClean.match(/^(\d{2})(\d{2})(\d{4})$/); // DDMMYYYY
 
-                        // 1. So khớp Số ngày trực tiếp: "01", "1", "1-", "01-"
-                        let dateMatch = kClean.startsWith(tNum + '-') || kClean.startsWith(tPadded + '-') || 
-                                       kClean.includes('_' + tNum + '-') || kClean.includes('_' + tPadded + '-');
-                        
-                        // 2. So khớp Số ngày viết liền (Ví dụ: 01thg4)
-                        if (!dateMatch) {
-                            let m = kClean.match(/^(\d{1,2})/);
-                            if (m && (m[1] === tNum || m[1] === tPadded)) dateMatch = true;
-                        }
-
-                        // 3. So khớp Serial Date nếu có trong Key
-                        let serialMatch = false;
-                        let serialInKey = kClean.match(/(\d{5})/);
-                        if (serialInKey) {
-                            headerTs = parseDateStrToTime(Number(serialInKey[1]));
-                            if (targetTimestamp > 0 && headerTs > 0) {
-                                let d1 = new Date(targetTimestamp);
-                                let d2 = new Date(headerTs);
-                                serialMatch = (d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate());
+                        if (matchYMD) {
+                            headerTs = new Date(parseInt(matchYMD[1], 10), parseInt(matchYMD[2], 10) - 1, parseInt(matchYMD[3], 10)).getTime();
+                        } else if (matchDDMMYYYY) {
+                            headerTs = new Date(parseInt(matchDDMMYYYY[3], 10), parseInt(matchDDMMYYYY[2], 10) - 1, parseInt(matchDDMMYYYY[1], 10)).getTime();
+                        } else {
+                            let dayMatch = kClean.match(/^ng(?:a|à)y(\d{1,2})/) || kClean.match(/^(\d{1,2})(?:thg|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/) || kClean.match(/^(\d{1,2})(?:mon|tue|wed|thu|fri|sat|sun|t2|t3|t4|t5|t6|t7|cn)/) || kClean.match(/^(\d{1,2})$/);
+                            
+                            // Xử lý riêng dạng ddmm (ví dụ 1104) nhưng cần đề phòng trùng lặp mã số khác
+                            if (!dayMatch && kClean.length === 4 && !isNaN(kClean)) {
+                                let dStr = kClean.substring(0, 2);
+                                let mStr = kClean.substring(2, 4);
+                                if (parseInt(dStr) <= 31 && parseInt(mStr) > 0 && parseInt(mStr) <= 12) {
+                                    dayMatch = [kClean, dStr];
+                                }
                             }
-                        }
 
-                        // NEW: Trích xuất Timestamp cho tất cả các cột nếu có định dạng ngày (vd: 01-thg4)
-                        if (headerTs === 0) {
-                            // Thử bóc tách ngày/tháng từ chuỗi "01-thg4"
-                            let mDate = kClean.match(/^(\d{1,2})[^\d]+(\d{1,2})/);
-                            if (mDate) {
-                                let dd = parseInt(mDate[1]);
-                                let mm = parseInt(mDate[2]) - 1;
-                                let yyyy = new Date(targetTimestamp).getFullYear();
-                                let dTemp = new Date(yyyy, mm, dd);
-                                // Nếu ngày quá xa mục tiêu (vd: tháng 12 so với tháng 1), lùi/tiến năm
-                                headerTs = dTemp.getTime();
-                            } else {
-                                // Thử bóc tách ngày đơn thuần (vd: 01) -> Giả định cùng tháng/năm với target
-                                let mDay = kClean.match(/^(\d{1,2})/);
-                                if (mDay) {
-                                    let dd = parseInt(mDay[1]);
-                                    let tDate = new Date(targetTimestamp);
-                                    let dTemp = new Date(tDate.getFullYear(), tDate.getMonth(), dd);
-                                    // Xử lý rollover tháng nếu cần (vd: target là 31/3, header là 1)
-                                    if (dd < tDate.getDate() - 15) dTemp.setMonth(dTemp.getMonth() + 1);
-                                    if (dd > tDate.getDate() + 15) dTemp.setMonth(dTemp.getMonth() - 1);
-                                    headerTs = dTemp.getTime();
+                            if (dayMatch) {
+                                let dayNum = parseInt(dayMatch[1], 10);
+                                if (!isNaN(dayNum) && dayNum > 0 && dayNum <= 31) {
+                                    let dHeader = new Date(targetTimestamp);
+                                    // Dự đoán tháng: nếu ngày nhỏ hơn ngày hiện tại nhiều -> có thể là tháng sau
+                                    if (dayNum < dHeader.getDate() - 15) {
+                                        dHeader.setMonth(dHeader.getMonth() + 1);
+                                    } else if (dayNum > dHeader.getDate() + 15) {
+                                        dHeader.setMonth(dHeader.getMonth() - 1);
+                                    }
+                                    dHeader.setDate(dayNum);
+                                    headerTs = dHeader.getTime();
                                 }
                             }
                         }
-                        
-                        // ƯU TIÊN: Nếu Header chứa thông tin NGÀY CỐ ĐỊNH, nó sẽ ghi đè việc so khớp THỨ chung chung
-                        if (dateMatch || serialMatch) {
-                            match = true;
-                        } else if (!isTargetWeekday && headerWeekdayIdx === -1) {
-                            // Fallback nếu headers quá đơn giản (chỉ "1", "2")
-                            match = (k === tNum || k === tPadded || k.startsWith(tNum + '/') || k.startsWith(tPadded + '/'));
-                        }
+
+                        let headerWeekdayIdx = getWeekdayIdx(k);
+
+                        let tNum = targetDateStr; // e.g. "11"
+                        // Chỉ sử dụng headerTs đã parse thành công để match chính xác ngày Target Delivery
+                        if (headerTs > 0) {
+                            let headerDateObj = new Date(headerTs);
+                            if (isTargetWeekday) {
+                                if (headerDateObj.getDay() === currentTargetNum) match = true;
+                            } else {
+                                if (headerDateObj.getDate() === currentTargetNum) match = true;
+                            }
                         }
 
-                        let v = String(val).trim().toLowerCase().replace(/\s+/g, '');
+
+                        let cellValue = String(val).trim().toLowerCase();
+                        let storeNameStr = String(row['tencuahang'] || row['têncửahàng'] || row['storename'] || row['tên'] || '').trim().toLowerCase();
+                        let sapStr = String(storeID).trim().toLowerCase();
                         let isDeliveryFound = false;
 
-                        if (v && v !== '0' && v !== 'false' && v !== 'off' && !v.includes('nghỉ')) {
-                            if (isMer) {
-                                // Rule Function Mer: Chịu trách nhiệm giao dịch nếu có mặt NVCH
-                                // Từ chối những CH đi thăm (chỉ ghi "NVCH"). Phải ghi "Shipper+NVCH" hoặc có dấu "+"
-                                if ((v.includes('shipper') && v.includes('nvch')) || (v.includes('nvch') && v.includes('+')) || v.includes('giao')) {
-                                    isDeliveryFound = true;
-                                } else if (v === 'x' || v === 'yes' || v === 'true') {
-                                    isDeliveryFound = true; // Fallback an toàn
-                                }
-                            } else {
-                                // Nếu không phải Function Mer (hoặc không có cột Function), mọi tín hiệu như Shipper, X đều tính
-                                isDeliveryFound = true;
-                            }
+                        // Theo yêu cầu mới: Tên cửa hàng nếu xuất hiện vào ngày giao hàng tức có giao hàng
+                        if (cellValue && storeNameStr && cellValue.includes(storeNameStr)) {
+                            isDeliveryFound = true;
+                        } else if (cellValue && sapStr && cellValue.includes(sapStr)) {
+                            isDeliveryFound = true;
                         }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
                         if (isDeliveryFound) {
                             if (match) {
@@ -1184,7 +1201,13 @@ btnCalculate.addEventListener('click', () => {
                     if (!hasDelivery) return;
 
                     // --- TÍNH TOÁN LEADTIME ĐỘNG TỪ MA TRẬN LỊCH GIAO HÀNG (Dạng Timestamp) ---
-                    let futureDates = possibleNextDeliveryTimestamps.filter(t => t > targetTimestamp + 3600000); // Cách ít nhất 1h
+                    let extendedDates = [];
+                    possibleNextDeliveryTimestamps.forEach(t => {
+                        extendedDates.push(t);
+                        extendedDates.push(t + 7 * 86400000); // Mô phỏng chu kỳ lặp lại tuần sau
+                        extendedDates.push(t + 14 * 86400000); // Tuần sau nữa
+                    });
+                    let futureDates = extendedDates.filter(t => t > targetTimestamp + 3600000); // Cách ít nhất 1h
                     if (futureDates.length > 0) {
                         let nextTS = Math.min(...futureDates);
                         dynamicLT = Math.round((nextTS - targetTimestamp) / 86400000);
@@ -1195,7 +1218,7 @@ btnCalculate.addEventListener('click', () => {
                 if (storeID) {
                     validSAPs.add(storeID);
 
-                    let sName = row['tencuahang'] || row['tncahng'] || row['storename'] || row['store'] || row['nickname'] || ''; 
+                    let sName = row['tencuahang'] || row['tncahng'] || row['storename'] || row['store'] || row['nickname'] || row['__EMPTY_1'] || ''; 
                     let nickname = row['nickname'] || '';
 
                     if (sName) storeNamesMap.set(storeID, String(sName).trim());
@@ -1355,7 +1378,7 @@ btnCalculate.addEventListener('click', () => {
         for (let storeID of new Set([...storeMaxInvDateMap.keys(), ...storeMaxOrderDateMap.keys()])) {
             let sInvDate = storeMaxInvDateMap.get(storeID) || 0;
             let sOrderDate = storeMaxOrderDateMap.get(storeID) || 0;
-            let sDeliveryDate = sOrderDate > 0 ? sOrderDate + 86400000 : 0;
+            let sDeliveryDate = sOrderDate > 0 ? sOrderDate + 86400000 : 0; // Khôi phục: Cộng thêm 1 ngày để thành ngày giao hàng
 
             let T = 0;
             if (sInvDate > 0 && sDeliveryDate > 0) {
@@ -1387,7 +1410,7 @@ btnCalculate.addEventListener('click', () => {
                 let rawDate = row['date'] || row['Date'] || row['ngay'] || row['ngày'] || 0;
                 let cDate = parseDateStrToTime(rawDate);
 
-                let T = storeMasterDateMap.get(storeID);
+                let T = storeMaxInvDateMap.get(storeID); // Chỉ so khớp với ngày lớn nhất của Tồn kho
                 if (!T || cDate > T) return;
 
                 let prodStd = normalizeProductName(prod);
@@ -1470,9 +1493,10 @@ btnCalculate.addEventListener('click', () => {
                 // Trích xuất ngày giao hàng/nhập hàng
                 let rawDate = row['orderdate'] || row['Order date'] || row['completeddate'] || row['Completed date'] || row['date'] || row['ngaydathang'] || row['ngay'] || row['ngaytao'] || row['createddate'] || 0;
                 let cOrderDate = parseDateStrToTime(rawDate);
-                let cDeliveryDate = cOrderDate > 0 ? cOrderDate + 86400000 : 0; // Cộng thêm 1 ngày giao
+                let cDeliveryDate = cOrderDate > 0 ? cOrderDate + 86400000 : 0; // Khôi phục: Cộng thêm 1 ngày để thành ngày giao hàng
 
-                let T = storeMasterDateMap.get(storeID);
+                let sOrderDate = storeMaxOrderDateMap.get(storeID) || 0;
+                let T = sOrderDate > 0 ? sOrderDate + 86400000 : 0; // Ngày lớn nhất của Input
                 if (!T || cDeliveryDate > T) return;
 
                 if (!inputMap.has(key)) {
@@ -1982,14 +2006,54 @@ btnCalculate.addEventListener('click', () => {
                 return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
             };
 
-            let expectedInvAtArrival = Math.max(0, finalInv + finalInput - demandLeadTime);
-
             let strT = formatDateStr(T);
             let strPrevInv = formatDateStr(invData.prevInvDate);
             let strPrevInput = formatDateStr(inputData.prevInputDate);
 
-            let invTooltip = `Tồn kho lúc T (${strT}): [ ${finalInv.toFixed(2)} ]\n- Trừ nhu cầu bán chờ hàng (${leadTimeArrival.toFixed(1)} ngày): -${demandLeadTime.toFixed(2)}\n=> Tồn dự kiến khi SOQ đến: ${expectedInvAtArrival.toFixed(2)}`;
-            let inputTooltip = `Nhập/Giao hàng lúc T (${strT}): [ ${finalInput.toFixed(2)} ]`;
+            // Yêu cầu: Không tự động lùi về dữ liệu gần nhất nếu ngày T không có dữ liệu
+            let actualInvTs = T;
+            let strInvDate = strT;
+            if (finalInv === 0 && invData.currentInv === 0 && invData.prevInvDate === 0) {
+                actualInvTs = 0;
+            }
+
+            let actualInputTs = T;
+            let strInputDate = strT;
+            if (finalInput === 0 && inputData.currentInput === 0 && inputData.prevInputDate === 0) {
+                actualInputTs = 0;
+            }
+
+            // KIỂM TRA LẠI SỐ TỒN VÀ NHẬP: 
+            // - Nếu Ngày Tồn > Ngày Nhập: Chỉ ghi nhận Tồn, bỏ qua Nhập
+            // - Nếu Ngày Tồn < Ngày Nhập: Chỉ ghi nhận Nhập, bỏ qua Tồn
+            // - Nếu Ngày Tồn == Ngày Nhập: Ghi nhận cả 2
+            if (actualInvTs > 0 && actualInputTs > 0) {
+                if (actualInvTs > actualInputTs) {
+                    finalInput = 0;
+                    strInputDate = `Bỏ qua (${strInputDate} < Tồn ${strInvDate})`;
+                } else if (actualInvTs < actualInputTs) {
+                    finalInv = 0;
+                    strInvDate = `Bỏ qua (${strInvDate} < Nhập ${strInputDate})`;
+                }
+            }
+
+            let expectedInvAtArrival = Math.max(0, finalInv + finalInput - demandLeadTime);
+
+            let invWarning = false;
+            // Cảnh báo nếu cùng ngày và Tồn gần bằng Nhập (Tồn >= 80% Nhập và Tồn <= 150% Nhập)
+            if (actualInvTs > 0 && actualInvTs === actualInputTs && finalInv > 0 && finalInput > 0) {
+                let ratio = finalInv / finalInput;
+                if (ratio >= 0.8 && ratio <= 1.5) {
+                    invWarning = true;
+                }
+            }
+
+            let invTooltip = `Tồn kho ghi nhận lúc (${strInvDate}): [ ${finalInv.toFixed(2)} ]\n- Trừ nhu cầu bán chờ hàng (${leadTimeArrival.toFixed(1)} ngày): -${demandLeadTime.toFixed(2)}\n=> Tồn dự kiến khi SOQ đến: ${expectedInvAtArrival.toFixed(2)}`;
+            if (invWarning) {
+                invTooltip += `\n\n⚠️ CẢNH BÁO: Tồn và Nhập ghi nhận cùng ngày và số lượng gần bằng nhau.\nCó thể nhân viên đã đếm tồn SAU khi nhập hàng lên kệ.\nHệ thống đang cộng gộp cả hai, rủi ro dư thừa hàng!`;
+            }
+
+            let inputTooltip = `Nhập/Giao hàng ghi nhận lúc (${strInputDate}): [ ${finalInput.toFixed(2)} ]`;
             let disposalTooltip = `KHÔNG PHẠT HỦY (Ratio quá thấp hoặc không đủ gốc chia)`;
 
             let baseForDisposal = prevInv + prevInput;
@@ -2030,8 +2094,14 @@ btnCalculate.addEventListener('click', () => {
                 }
             }
 
-            let soq = totalDemand - expectedInvAtArrival;
-            soq = Math.max(Math.ceil(soq), 0);
+            let soqRaw = totalDemand - expectedInvAtArrival;
+            let soq = Math.max(Math.ceil(soqRaw), 0);
+
+            let soqTooltip = `Công thức: Tổng Nhu Cầu (Demand) - Tổng Tồn dự kiến khi hàng đến\n`;
+            soqTooltip += `(Trong đó: Tổng Tồn dự kiến đã bao gồm Tồn kho (INV) + Nhập (Input) trừ đi lượng bán chờ hàng)\n`;
+            soqTooltip += `= ${totalDemand.toFixed(2)} - ${expectedInvAtArrival.toFixed(2)}\n`;
+            soqTooltip += `= ${soqRaw.toFixed(2)}\n`;
+            soqTooltip += `=> Làm tròn (Gợi ý đặt tối thiểu 0): ${soq} SP`;
 
             let itemKey = `${data.storeID}_${data.prodStd.toLowerCase()}`;
             let trendAction = trendReportMap.get(itemKey) || '';
@@ -2080,6 +2150,7 @@ btnCalculate.addEventListener('click', () => {
                 'soq': soq,
                 'xu_huong': trendAction,
                 'xu_huong_html': xuHuongHtml,
+                'inv_warning': invWarning,
                 // Tooltips
                 'tip_ads': (mTotal === 0 && wTotal > 0) 
                            ? `[MÃ MỚI TỪ FILE TUẦN] Sản lượng: ${wTotal.toFixed(1)} / ${Math.round(wDaysCount)} ngày (Vòng đời)\n=> Trung bình: ${forecastDay.toFixed(2)} SP/ngày` 
@@ -2092,7 +2163,8 @@ btnCalculate.addEventListener('click', () => {
                 'tip_demand': breakdownTip,
                 'tip_inventory': invTooltip,
                 'tip_input': inputTooltip,
-                'tip_penalty': disposalTooltip
+                'tip_penalty': disposalTooltip,
+                'tip_soq': soqTooltip
             });
         });
 
@@ -2175,100 +2247,78 @@ btnCalculate.addEventListener('click', () => {
     }
 });
 
-// Tính năng lưu lịch sử
-const btnSaveChanges = document.getElementById('btn-save-changes');
-if (btnSaveChanges) {
-    btnSaveChanges.addEventListener('click', () => {
-        // Kiểm tra logic nhập thiếu theo từng cửa hàng
-        let storeData = {};
-        finalResults.forEach(item => {
-            if (!storeData[item.sap]) {
-                storeData[item.sap] = { filled: 0, empty: 0, name: item.store };
-            }
-            if (item.final_order !== undefined && item.final_order !== '') {
-                storeData[item.sap].filled++;
-            } else {
-                storeData[item.sap].empty++;
-            }
-        });
+// Hàm hỗ trợ lưu thay đổi lên Cloud (Firebase Transaction)
+function saveChangesToCloud() {
+    return new Promise((resolve, reject) => {
+        if (typeof firebase === 'undefined') {
+            reject(new Error("Firebase chưa được khởi tạo."));
+            return;
+        }
 
-        let missingStores = [];
-        for (let sap in storeData) {
-            let s = storeData[sap];
-            // Nếu cửa hàng có ít nhất 1 sản phẩm được nhập, nhưng vẫn còn sản phẩm bị bỏ trống
-            if (s.filled > 0 && s.empty > 0) {
-                missingStores.push(`${s.name} (thiếu ${s.empty} mã)`);
-            }
-        }
-        
-        if (missingStores.length > 0) {
-            let confirmSave = confirm(`⚠️ CẢNH BÁO:\nCó cửa hàng đã nhập "SL ĐẶT" nhưng chưa nhập đủ toàn bộ các mã sản phẩm:\n- ${missingStores.join('\n- ')}\n\nBạn có chắc chắn muốn lưu lại không?`);
-            if (!confirmSave) return;
-        }
+        let userName = inputUserName ? inputUserName.value.trim() : "Hệ thống";
+        if (!userName) userName = "Ẩn danh";
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0];
+
+        const payload = {
+            results: finalResults,
+            filename: scheduleFileName,
+            timestamp: now.getTime(),
+            dateStr: dateStr,
+            deliveryDateStr: currentDeliveryDateStr,
+            userName: userName
+        };
 
         if (typeof firebase !== 'undefined') {
-            btnSaveChanges.innerHTML = "⏳ Đang lưu...";
-            let userName = inputUserName ? inputUserName.value.trim() : "Hệ thống";
-            if (!userName) userName = "Ẩn danh";
-            const now = new Date();
-            const dateStr = now.toISOString().split('T')[0];
+        firebase.database().ref('latest_soq').transaction((currentData) => {
+            try {
+                // Kiểm tra cùng ngày (dateStr) để gộp thay đổi của mọi người dùng
+                if (currentData && currentData.dateStr === dateStr) {
+                    let cloudMap = {};
+                    if (currentData.results) {
+                        let resultsArr = Array.isArray(currentData.results) ? currentData.results : Object.values(currentData.results);
+                        resultsArr.forEach(r => {
+                            if (r) cloudMap[r.sap + '_' + r.product] = r;
+                        });
+                    }
 
-            const payload = {
-                results: finalResults,
-                filename: scheduleFileName,
-                timestamp: now.getTime(),
-                dateStr: dateStr,
-                      deliveryDateStr: currentDeliveryDateStr,
-                userName: userName
-            };
+                    let modified = false;
+                    finalResults.forEach(localItem => {
+                        if (localItem.is_dirty) {
+                            modified = true;
+                            let key = localItem.sap + '_' + localItem.product;
+                            if (cloudMap[key]) {
+                                cloudMap[key].final_order = localItem.final_order;
+                                cloudMap[key].note = localItem.note;
+                            } else {
+                                if (!currentData.results) currentData.results = [];
+                                
+                                let cleanItem = JSON.parse(JSON.stringify(localItem));
+                                delete cleanItem.is_dirty;
 
-            firebase.database().ref('latest_soq').transaction((currentData) => {
-                try {
-                    if (currentData && currentData.dateStr === dateStr && currentData.filename === scheduleFileName) {
-                        let cloudMap = {};
-                        if (currentData.results) {
-                            let resultsArr = Array.isArray(currentData.results) ? currentData.results : Object.values(currentData.results);
-                            resultsArr.forEach(r => {
-                                if (r) cloudMap[r.sap + '_' + r.product] = r;
-                            });
-                        }
-
-                        let modified = false;
-                        finalResults.forEach(localItem => {
-                            if (localItem.is_dirty) {
-                                modified = true;
-                                let key = localItem.sap + '_' + localItem.product;
-                                if (cloudMap[key]) {
-                                    cloudMap[key].final_order = localItem.final_order;
-                                    cloudMap[key].note = localItem.note;
+                                if (Array.isArray(currentData.results)) {
+                                    currentData.results.push(cleanItem);
                                 } else {
-                                    if (!currentData.results) currentData.results = [];
-                                    
-                                    // Clone to avoid mutating original and remove is_dirty
-                                    let cleanItem = JSON.parse(JSON.stringify(localItem));
-                                    delete cleanItem.is_dirty;
-
-                                    if (Array.isArray(currentData.results)) {
-                                        currentData.results.push(cleanItem);
-                                    } else {
-                                        let maxKey = Math.max(-1, ...Object.keys(currentData.results).map(Number).filter(n => !isNaN(n)));
-                                        currentData.results[maxKey + 1] = cleanItem;
-                                    }
+                                    let maxKey = Math.max(-1, ...Object.keys(currentData.results).map(Number).filter(n => !isNaN(n)));
+                                    currentData.results[maxKey + 1] = cleanItem;
                                 }
                             }
-                        });
-
-                        if (!modified) {
-                            // Cố tình sửa 1 trường nhỏ để Firebase bắt buộc nhận diện có thay đổi (force commit)
-                            currentData.lastActive = now.getTime();
                         }
+                    });
 
-                        currentData.timestamp = now.getTime();
-                        currentData.userName = userName; 
-                        
-                        // Sanitize before returning to prevent Firebase SDK crash due to undefined properties
-                        return JSON.parse(JSON.stringify(currentData));
+                    if (!modified) {
+                        currentData.lastActive = now.getTime();
                     }
+
+                    // Đồng bộ metadata mới nhất
+                    currentData.filename = scheduleFileName;
+                    currentData.timestamp = now.getTime();
+                    currentData.userName = userName;
+
+                    // Sanitize before returning to prevent Firebase SDK crash due to undefined properties
+                    return JSON.parse(JSON.stringify(currentData));
+                }
+
                     
                     let newPayload = JSON.parse(JSON.stringify(payload));
                     if (Array.isArray(newPayload.results)) {
@@ -2951,10 +3001,10 @@ function renderSOQTable(data) {
             <td title="${item.tip_growth}"><b>${item.growthHtml}</b></td>
             <td><span title="${item.tip_leadtime}">${item.leadtime}</span></td>
             <td title="${item.tip_demand}">${item.demandRaw}</td>
-            <td class="warning" title="${item.tip_inventory}">${item.inventory}</td>
+            <td class="warning" title="${item.tip_inventory}" style="${item.inv_warning ? 'border: 2px solid #ff9800; background: rgba(255, 152, 0, 0.1);' : ''}">${item.inv_warning ? '<span style="color:#ff9800; margin-right:4px;">⚠️</span>' : ''}${item.inventory}</td>
             <td class="highlight" title="${item.tip_input}">${item.input}</td>
             <td style="color:${item.penalty !== '0' ? 'var(--danger)' : ''}" title="${item.tip_penalty}">${item.penalty}</td>
-            <td class="highlight">${item.soq}</td>
+            <td class="highlight" title="${item.tip_soq}">${item.soq}</td>
             <td>${item.xu_huong_html || '<span>-</span>'}</td>
             ${finalOrderTd}
             ${noteTd}

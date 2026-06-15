@@ -1,4 +1,4 @@
-Add-Type -AssemblyName System.IO.Compression.FileSystem
+﻿Add-Type -AssemblyName System.IO.Compression.FileSystem
 $parentDir = "D:\DHF\CONSIGNMENT\Don giao 0104"
 $file = Get-ChildItem -Path $parentDir -Filter "*2303-0504*" | Select-Object -First 1
 
@@ -76,7 +76,7 @@ if ($file) {
                 }
                 
                 $deliverySignal = $rowValues[$targetColIdx]
-                if ($deliverySignal -and $deliverySignal.Trim() -ne "" -and $deliverySignal -ne "0" -and $deliverySignal -notmatch "nghỉ|off") {
+                if ($deliverySignal -and $deliverySignal.Trim() -ne "" -and $deliverySignal -ne "0" -and $deliverySignal -notmatch "nghá»‰|off") {
                     $sap = $rowValues[$sapColIdx]
                     $store = $rowValues[$storeColIdx]
                     Write-Output "[$sap] $store : $deliverySignal"
@@ -91,3 +91,4 @@ if ($file) {
 } else {
     Write-Output "File not found"
 }
+

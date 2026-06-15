@@ -1,4 +1,4 @@
-Add-Type -AssemblyName System.IO.Compression.FileSystem
+﻿Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 function Get-XlsxHeaders {
     param($resolvedPath)
@@ -27,10 +27,10 @@ function Get-XlsxHeaders {
     $zip.Dispose()
 }
 
-$source = Get-Item "d:\DHF\QLKV_WM\ĐƠN ĐẶT HÀNG\Đơn đặt ngày 1903\Lịch 2003-2203.xlsx" -ErrorAction SilentlyContinue
+$source = Get-Item "d:\DHF\QLKV_WM\ÄÆ N Äáº¶T HÃ€NG\ÄÆ¡n Ä‘áº·t ngÃ y 1903\Lá»‹ch 2003-2203.xlsx" -ErrorAction SilentlyContinue
 if (-not $source) {
     # Try alternate find just in case
-    $source = Get-ChildItem "d:\DHF\QLKV_WM" -Recurse | Where-Object { $_.Name -match 'Lịch' } | Select-Object -First 1
+    $source = Get-ChildItem "d:\DHF\QLKV_WM" -Recurse | Where-Object { $_.Name -match 'Lá»‹ch' } | Select-Object -First 1
 }
 
 if ($source) {
@@ -42,3 +42,4 @@ if ($source) {
 } else {
     Write-Output "STILL NOT FOUND"
 }
+
