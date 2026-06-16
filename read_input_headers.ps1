@@ -1,4 +1,4 @@
-﻿Add-Type -AssemblyName System.IO.Compression.FileSystem
+Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 function Get-XlsxHeaders {
     param($resolvedPath)
@@ -39,4 +39,3 @@ Copy-Item $source.FullName $tempTarget -Force
 Write-Output '--- INPUT ODA ---'
 Get-XlsxHeaders $tempTarget
 Remove-Item $tempTarget -Force
-

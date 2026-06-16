@@ -107,4 +107,3 @@ $content = $content.Replace($old4.Replace("`r`n", "`n"), $new4.Replace("`r`n", "
 $content = $content.Replace($old4, $new4)
 
 [IO.File]::WriteAllText($path, $content, [Text.Encoding]::UTF8)
-
