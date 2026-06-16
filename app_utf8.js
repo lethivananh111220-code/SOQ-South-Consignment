@@ -1,5 +1,5 @@
-﻿// --- CẤU HÌNH FIREBASE ---
-// Bạn cần lấy thông tin này từ Firebase Console (https://console.firebase.google.com/)
+﻿// --- Cáº¤U HÃŒNH FIREBASE ---
+// Báº¡n cáº§n láº¥y thÃ´ng tin nÃ y tá»« Firebase Console (https://console.firebase.google.com/)
 const firebaseConfig = {
     apiKey: "AIzaSyBHG5WoQVon5lgoyZNZ7agIVYJDjyZdRrY",
     authDomain: "soq-south-consignment.firebaseapp.com",
@@ -11,69 +11,69 @@ const firebaseConfig = {
     measurementId: "G-MSG7VKL5QQ"
 };
 
-// Khởi tạo Firebase nếu thư viện đã tải thành công
+// Khá»Ÿi táº¡o Firebase náº¿u thÆ° viá»‡n Ä‘Ã£ táº£i thÃ nh cÃ´ng
 if (typeof firebase !== 'undefined') {
     firebase.initializeApp(firebaseConfig);
 }
 
-// Danh sách rau ăn lá/RTE (Tỷ lệ hủy > 30%)
+// Danh sÃ¡ch rau Äƒn lÃ¡/RTE (Tá»· lá»‡ há»§y > 30%)
 const RTE_PRODUCTS = [
-    "Cải hoa hồng baby", "Cải Kale xoăn", "Cải Kale khủng long", "Bông cải xanh baby",
-    "Xà lách frisée xanh ngọt", "Xà lách romaine xanh thượng hạng", "Xà lách frisée tím ngọt",
-    "Xà lách romaine tím thượng hạng", "Xà lách baby lollo", "Xà lách baby thủy tinh",
-    "Cải ngọt giống nhật", "Cải bó xôi", "Xà lách hỗn hợp", "Asian Mix",
+    "Cáº£i hoa há»“ng baby", "Cáº£i Kale xoÄƒn", "Cáº£i Kale khá»§ng long", "BÃ´ng cáº£i xanh baby",
+    "XÃ  lÃ¡ch frisÃ©e xanh ngá»t", "XÃ  lÃ¡ch romaine xanh thÆ°á»£ng háº¡ng", "XÃ  lÃ¡ch frisÃ©e tÃ­m ngá»t",
+    "XÃ  lÃ¡ch romaine tÃ­m thÆ°á»£ng háº¡ng", "XÃ  lÃ¡ch baby lollo", "XÃ  lÃ¡ch baby thá»§y tinh",
+    "Cáº£i ngá»t giá»‘ng nháº­t", "Cáº£i bÃ³ xÃ´i", "XÃ  lÃ¡ch há»—n há»£p", "Asian Mix",
     "Gourmet Italian Mix", "Sweet Baby Lettuces", "Baby Spring Mix", "Chopped Kale",
-    "Pure Rocket", "Cải bó xôi baby ăn liền"
+    "Pure Rocket", "Cáº£i bÃ³ xÃ´i baby Äƒn liá»n"
 ];
 
-// Danh sách sắp xếp hiển thị mặc định (theo yêu cầu người dùng)
+// Danh sÃ¡ch sáº¯p xáº¿p hiá»ƒn thá»‹ máº·c Ä‘á»‹nh (theo yÃªu cáº§u ngÆ°á»i dÃ¹ng)
 const CUSTOM_PRODUCT_ORDER = [
-    "Xà lách hỗn hợp loại Baby Spring Mix 100g",
-    "Xà lách hỗn hợp loại Sweet Baby Lettuces 100g",
-    "Xà lách hỗn hợp loại Gourmet Italian Mix 100g",
-    "Xà lách hỗn hợp loại Pure Rocket 100g",
-    "Xà lách hỗn hợp loại Chopped Kale 100g",
-    "Xà lách hỗn hợp loại Asian Mix 120g",
-    "Cải bó xôi baby ăn liền 100g",
-    "Dưa leo giống nhật 450g",
-    "Cà rốt 400g",
-    "Hành tây mini 350g",
-    "Khoai tây mini 400g",
-    "Khoai tây mini 400g (Baby)",
-    "Cà chua ngọt chùm 250g",
-    "Đậu cove giống nhật 200g",
-    "Cần tây 350g",
-    "Cà rốt baby 250g",
-    "Xà lách frisée xanh ngọt 190g",
-    "Xà lách frisée tím ngọt 150g",
-    "Xà lách romaine xanh thượng hạng 170g",
-    "Xà lách romaine tím thượng hạng 130g",
-    "Xà lách hỗn hợp 200g",
-    "Cà chua Roma 400g",
-    "Cà chua Cherry ngọt 250g",
-    "Cải Kale xoăn 250g",
-    "Cải Kale khủng long 250g",
-    "Đậu ngọt 200g",
-    "Bí vua Hàn Quốc 300g up",
-    "Bông cải xanh baby 250g",
-    "Bông cải xanh 200g",
-    "Bông cải xanh (RETAIL KG)",
-    "Cải bó xôi 300g",
-    "Cải hoa hồng baby 200g",
-    "Xà lách baby thủy tinh 200g",
-    "Xà lách baby lollo 200g",
-    "Cải ngọt giống nhật 300g",
-    "Cải Kale xoăn 250g (khuyến mãi)",
-    "Cà rốt 500g (NTX)",
-    "Dưa leo giống nhật 600g (NTX)",
-    "Đậu cove giống nhật 500g (NTX)",
-    "Cần tây 600g (NTX)",
-    "Khoai tây hồng 500g (NTX)",
-    "Khoai tây vàng 500g (NTX)",
-    "Hành tây tím mini 350g",
-    "Hành tây tím 500g (NTX)",
-    "Hành tây vàng 500g (NTX)",
-    "Bí hạt dẻ (RETAIL KG)"
+    "XÃ  lÃ¡ch há»—n há»£p loáº¡i Baby Spring Mix 100g",
+    "XÃ  lÃ¡ch há»—n há»£p loáº¡i Sweet Baby Lettuces 100g",
+    "XÃ  lÃ¡ch há»—n há»£p loáº¡i Gourmet Italian Mix 100g",
+    "XÃ  lÃ¡ch há»—n há»£p loáº¡i Pure Rocket 100g",
+    "XÃ  lÃ¡ch há»—n há»£p loáº¡i Chopped Kale 100g",
+    "XÃ  lÃ¡ch há»—n há»£p loáº¡i Asian Mix 120g",
+    "Cáº£i bÃ³ xÃ´i baby Äƒn liá»n 100g",
+    "DÆ°a leo giá»‘ng nháº­t 450g",
+    "CÃ  rá»‘t 400g",
+    "HÃ nh tÃ¢y mini 350g",
+    "Khoai tÃ¢y mini 400g",
+    "Khoai tÃ¢y mini 400g (Baby)",
+    "CÃ  chua ngá»t chÃ¹m 250g",
+    "Äáº­u cove giá»‘ng nháº­t 200g",
+    "Cáº§n tÃ¢y 350g",
+    "CÃ  rá»‘t baby 250g",
+    "XÃ  lÃ¡ch frisÃ©e xanh ngá»t 190g",
+    "XÃ  lÃ¡ch frisÃ©e tÃ­m ngá»t 150g",
+    "XÃ  lÃ¡ch romaine xanh thÆ°á»£ng háº¡ng 170g",
+    "XÃ  lÃ¡ch romaine tÃ­m thÆ°á»£ng háº¡ng 130g",
+    "XÃ  lÃ¡ch há»—n há»£p 200g",
+    "CÃ  chua Roma 400g",
+    "CÃ  chua Cherry ngá»t 250g",
+    "Cáº£i Kale xoÄƒn 250g",
+    "Cáº£i Kale khá»§ng long 250g",
+    "Äáº­u ngá»t 200g",
+    "BÃ­ vua HÃ n Quá»‘c 300g up",
+    "BÃ´ng cáº£i xanh baby 250g",
+    "BÃ´ng cáº£i xanh 200g",
+    "BÃ´ng cáº£i xanh (RETAIL KG)",
+    "Cáº£i bÃ³ xÃ´i 300g",
+    "Cáº£i hoa há»“ng baby 200g",
+    "XÃ  lÃ¡ch baby thá»§y tinh 200g",
+    "XÃ  lÃ¡ch baby lollo 200g",
+    "Cáº£i ngá»t giá»‘ng nháº­t 300g",
+    "Cáº£i Kale xoÄƒn 250g (khuyáº¿n mÃ£i)",
+    "CÃ  rá»‘t 500g (NTX)",
+    "DÆ°a leo giá»‘ng nháº­t 600g (NTX)",
+    "Äáº­u cove giá»‘ng nháº­t 500g (NTX)",
+    "Cáº§n tÃ¢y 600g (NTX)",
+    "Khoai tÃ¢y há»“ng 500g (NTX)",
+    "Khoai tÃ¢y vÃ ng 500g (NTX)",
+    "HÃ nh tÃ¢y tÃ­m mini 350g",
+    "HÃ nh tÃ¢y tÃ­m 500g (NTX)",
+    "HÃ nh tÃ¢y vÃ ng 500g (NTX)",
+    "BÃ­ háº¡t dáº» (RETAIL KG)"
 ];
 
 const datasets = {
@@ -87,7 +87,7 @@ const datasets = {
     trend_report: null
 };
 
-let scheduleFileName = "SOQ_Calculated_Order"; // Tên mặc định
+let scheduleFileName = "SOQ_Calculated_Order"; // TÃªn máº·c Ä‘á»‹nh
 
 let productWeightMap = new Map();
 let globalStoreRegionMap = new Map();
@@ -133,10 +133,10 @@ function buildMetadataMaps() {
     
     if (datasets.schedule && datasets.schedule.length > 0) {
         datasets.schedule.forEach(row => {
-            let store = row['sap'] || row['storekey'] || row['storecode'] || row['makho'] || row['mach'] || row['mãkháchhàng'] || row['mãcửahàng'] || row['nickname'] || row['storename'] || row['store'];
+            let store = row['sap'] || row['storekey'] || row['storecode'] || row['makho'] || row['mach'] || row['mÃ£khÃ¡chhÃ ng'] || row['mÃ£cá»­ahÃ ng'] || row['nickname'] || row['storename'] || row['store'];
             if (!store) return;
             let storeID = extractSAP(store);
-            let region = String(row['khuvuc'] || row['khuvực'] || row['region'] || 'Khác').trim();
+            let region = String(row['khuvuc'] || row['khuvá»±c'] || row['region'] || 'KhÃ¡c').trim();
             globalStoreRegionMap.set(storeID, region);
             let sName = row['tencuahang'] || row['tncahng'] || row['storename'] || row['store'] || row['nickname'] || '';
             let nickname = row['nickname'] || '';
@@ -167,7 +167,7 @@ function buildProductWeightMap() {
     for (let c = 0; c < headerRow.length; c++) {
         let h = String(headerRow[c]).toUpperCase();
         if (h.includes('ODA')) iOda = c;
-        if (h.includes('KHỐI LƯỢNG') || h.includes('KHOI LUONG') || h.includes('WEIGHT') || h.includes('TỊNH') || h.includes('GRAM')) {
+        if (h.includes('KHá»I LÆ¯á»¢NG') || h.includes('KHOI LUONG') || h.includes('WEIGHT') || h.includes('Tá»ŠNH') || h.includes('GRAM')) {
             iWeight = c;
         }
     }
@@ -264,7 +264,7 @@ function getWeeksOfYear() {
     for (let w = currentWeek; w >= 1; w--) {
         let monday = getMondayOfWeek(year, w);
         let sunday = new Date(monday.getTime() + 6 * 86400000);
-        let label = `Tuần ${w} (${formatDateDMY(monday)} - ${formatDateDMY(sunday)})`;
+        let label = `Tuáº§n ${w} (${formatDateDMY(monday)} - ${formatDateDMY(sunday)})`;
         options.push({
             year: year,
             week: w,
@@ -356,7 +356,7 @@ function removeAccents(str) {
     if (!str) return '';
     return str.normalize('NFD')
               .replace(/[\u0300-\u036f]/g, '')
-              .replace(/đ/g, 'd').replace(/Đ/g, 'D');
+              .replace(/Ä‘/g, 'd').replace(/Ä/g, 'D');
 }
 
 // Helper to normalize column names
@@ -366,18 +366,18 @@ function normalizeKey(key) {
     return s.replace(/[^a-z0-9]/g, '');
 }
 
-// Hàm trích xuất tự động bỏ qua các tiêu đề báo cáo rác ở file hệ thống (Excel report info)
+// HÃ m trÃ­ch xuáº¥t tá»± Ä‘á»™ng bá» qua cÃ¡c tiÃªu Ä‘á» bÃ¡o cÃ¡o rÃ¡c á»Ÿ file há»‡ thá»‘ng (Excel report info)
 function extractJsonDataCleanly(worksheet) {
     let rawArr = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, dateNF: 'yyyy-mm-dd hh:mm:ss' });
     if (!rawArr || rawArr.length === 0) return [];
 
     let headerIdx = 0;
-    // Tìm dòng header thực sự (Thường có chứa các chữ khóa nhận diện và > 3 cột dữ liệu)
+    // TÃ¬m dÃ²ng header thá»±c sá»± (ThÆ°á»ng cÃ³ chá»©a cÃ¡c chá»¯ khÃ³a nháº­n diá»‡n vÃ  > 3 cá»™t dá»¯ liá»‡u)
     for (let i = 0; i < Math.min(20, rawArr.length); i++) {
         let r = rawArr[i];
         if (!r) continue;
         let validCols = r.filter(c => typeof c === 'string' && c.trim() !== '');
-        if (validCols.length >= 2 && r.some(c => typeof c === 'string' && (c.toUpperCase().includes('SAP') || c.toUpperCase().includes('STORE') || c.toUpperCase().includes('NICKNAME') || c.toUpperCase().includes('TÊN') || c.toUpperCase().includes('ARTICLE') || c.toUpperCase().includes('PRODUCT')))) {
+        if (validCols.length >= 2 && r.some(c => typeof c === 'string' && (c.toUpperCase().includes('SAP') || c.toUpperCase().includes('STORE') || c.toUpperCase().includes('NICKNAME') || c.toUpperCase().includes('TÃŠN') || c.toUpperCase().includes('ARTICLE') || c.toUpperCase().includes('PRODUCT')))) {
             headerIdx = i;
             break;
         }
@@ -391,14 +391,14 @@ function extractJsonDataCleanly(worksheet) {
         return normalizeKey(prefix + h);
     });
     
-    // FALLBACK: Nếu headers toàn là số (Excel Serial Dates) -> Có thể đây là file matrix không có label.
+    // FALLBACK: Náº¿u headers toÃ n lÃ  sá»‘ (Excel Serial Dates) -> CÃ³ thá»ƒ Ä‘Ã¢y lÃ  file matrix khÃ´ng cÃ³ label.
     let numericHeadersCount = headersRaw.filter(h => typeof h === 'number' && h > 40000).length;
-    // Tăng cường kiểm tra cả headersPrefix nếu có
+    // TÄƒng cÆ°á»ng kiá»ƒm tra cáº£ headersPrefix náº¿u cÃ³
     if (headersPrefix.length > 0) numericHeadersCount += headersPrefix.filter(h => typeof h === 'number' && h > 40000).length;
 
     if (numericHeadersCount > 5) {
-        // Đây là dạng file Lịch Matrix. Ép các cột cố định (0: Type, 1: SAP, 4: Name)
-        // Lưu ý: Nếu có prefix, headers[1] có thể là "v_sap". Ta rà soát index.
+        // ÄÃ¢y lÃ  dáº¡ng file Lá»‹ch Matrix. Ã‰p cÃ¡c cá»™t cá»‘ Ä‘á»‹nh (0: Type, 1: SAP, 4: Name)
+        // LÆ°u Ã½: Náº¿u cÃ³ prefix, headers[1] cÃ³ thá»ƒ lÃ  "v_sap". Ta rÃ  soÃ¡t index.
         headers[0] = 'type';
         headers[1] = 'sap';
         headers[2] = 'tier';
@@ -412,7 +412,7 @@ function extractJsonDataCleanly(worksheet) {
         let row = rawArr[i];
         if (!row || row.length === 0) continue;
 
-        // Bỏ qua dòng Total (Dòng tổng cộng của SAP)
+        // Bá» qua dÃ²ng Total (DÃ²ng tá»•ng cá»™ng cá»§a SAP)
         if (row.some(cell => String(cell).toUpperCase().includes('RESULT') || String(cell).toUpperCase() === 'TOTAL')) continue;
 
         let obj = {};
@@ -421,8 +421,8 @@ function extractJsonDataCleanly(worksheet) {
             if (row[j] !== undefined && row[j] !== null && String(row[j]).trim() !== '') {
                 obj[headers[j]] = row[j]; // Composite
 
-                // Khôi phục việc đọc các cột đơn giản (sap, date...) để không bị hư tên do prefix chặn.
-                // Ngăn chặn riêng biệt lỗi trượt/chồng lắp lịch các ngày trong tuần (đã xử lý ở bước trước).
+                // KhÃ´i phá»¥c viá»‡c Ä‘á»c cÃ¡c cá»™t Ä‘Æ¡n giáº£n (sap, date...) Ä‘á»ƒ khÃ´ng bá»‹ hÆ° tÃªn do prefix cháº·n.
+                // NgÄƒn cháº·n riÃªng biá»‡t lá»—i trÆ°á»£t/chá»“ng láº¯p lá»‹ch cÃ¡c ngÃ y trong tuáº§n (Ä‘Ã£ xá»­ lÃ½ á»Ÿ bÆ°á»›c trÆ°á»›c).
                 let rawClean = normalizeKey(headersRaw[j]);
                 const wDays = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
                 if (!wDays.some(d => rawClean.includes(d))) {
@@ -446,7 +446,7 @@ function parseDateStrToTime(val) {
         let utcDate = new Date(Math.round((val - 25569) * 86400 * 1000));
         return new Date(utcDate.getUTCFullYear(), utcDate.getUTCMonth(), utcDate.getUTCDate()).getTime();
     }
-    let s = String(val).trim().split(' ')[0]; // Bỏ time nếu có
+    let s = String(val).trim().split(' ')[0]; // Bá» time náº¿u cÃ³
 
     // Support YYYY-MM-DD formats natively returning local midnight
     let m2 = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
@@ -491,7 +491,7 @@ function parseDateStrToTime(val) {
     return 0; // fallback numerical value
 }
 
-// Tính tổng nhu cầu động dựa trên loại ngày (thứ 2-5 hoặc thứ 6-CN)
+// TÃ­nh tá»•ng nhu cáº§u Ä‘á»™ng dá»±a trÃªn loáº¡i ngÃ y (thá»© 2-5 hoáº·c thá»© 6-CN)
 function calculatePeriodDemand(startTs, totalDays, adsWeekday, adsWeekend) {
     let total = 0;
     let roundedDays = Math.round(totalDays);
@@ -516,7 +516,7 @@ function handleFileUpload(event, type) {
     if (!file) return;
 
     const statusEl = document.getElementById(`status-${type}`);
-    statusEl.textContent = `Đang đọc ${file.name}...`;
+    statusEl.textContent = `Äang Ä‘á»c ${file.name}...`;
 
     const reader = new FileReader();
     reader.onload = function (e) {
@@ -524,7 +524,7 @@ function handleFileUpload(event, type) {
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         let firstSheetName = workbook.SheetNames[0];
         
-        // Theo yêu cầu: Lấy dữ liệu từ sheet "Summary by Products" cho file Input
+        // Theo yÃªu cáº§u: Láº¥y dá»¯ liá»‡u tá»« sheet "Summary by Products" cho file Input
         if (type === 'input') {
             const desiredSheet = workbook.SheetNames.find(sheet => sheet.trim().toLowerCase() === 'summary by products');
             if (desiredSheet) {
@@ -540,7 +540,7 @@ function handleFileUpload(event, type) {
             saveToDB('mapping_raw', arr);
             buildMetadataMaps();
             buildProductWeightMap();
-            statusEl.textContent = `Đã tải & lưu trữ: ${file.name} (${arr.length} dòng)`;
+            statusEl.textContent = `ÄÃ£ táº£i & lÆ°u trá»¯: ${file.name} (${arr.length} dÃ²ng)`;
             statusEl.classList.add('success');
             checkReady();
             return;
@@ -554,18 +554,18 @@ function handleFileUpload(event, type) {
                     if (headerRow) {
                         datasets.template_headers = headerRow.map(h => String(h).trim());
                         saveToDB('template_headers', datasets.template_headers);
-                        statusEl.textContent = `Đã nạp Form Mẫu (${datasets.template_headers.length} cột)`;
+                        statusEl.textContent = `ÄÃ£ náº¡p Form Máº«u (${datasets.template_headers.length} cá»™t)`;
                         statusEl.classList.add('success');
 
                         if (typeof firebase !== 'undefined') {
                             firebase.database().ref('global_template').set({
                                 headers: datasets.template_headers,
                                 timestamp: Date.now()
-                            }).then(() => console.log("Đã cập nhật Form Mẫu lên Cloud."))
-                              .catch(err => console.error("Lỗi lưu Form Mẫu lên Cloud:", err));
+                            }).then(() => console.log("ÄÃ£ cáº­p nháº­t Form Máº«u lÃªn Cloud."))
+                              .catch(err => console.error("Lá»—i lÆ°u Form Máº«u lÃªn Cloud:", err));
                         }
                     } else {
-                        statusEl.textContent = `Form Mẫu trống!`;
+                        statusEl.textContent = `Form Máº«u trá»‘ng!`;
                         statusEl.style.color = "var(--danger)";
                     }
                 }
@@ -600,24 +600,24 @@ function handleFileUpload(event, type) {
                             data: datasets['weekly'],
                             timestamp: Date.now(),
                             fileName: file.name
-                        }).then(() => console.log(`Đã lưu trữ báo cáo doanh số tuần ngày ${mondayStr} lên Cloud.`))
-                          .catch(err => console.error("Lỗi lưu doanh số tuần Cloud:", err));
+                        }).then(() => console.log(`ÄÃ£ lÆ°u trá»¯ bÃ¡o cÃ¡o doanh sá»‘ tuáº§n ngÃ y ${mondayStr} lÃªn Cloud.`))
+                          .catch(err => console.error("Lá»—i lÆ°u doanh sá»‘ tuáº§n Cloud:", err));
                     }
                 }
-                statusEl.textContent = `Đã tải & lưu trữ: ${file.name} (${datasets[type].length} dòng)`;
+                statusEl.textContent = `ÄÃ£ táº£i & lÆ°u trá»¯: ${file.name} (${datasets[type].length} dÃ²ng)`;
             } else {
-                statusEl.textContent = `Đã tải: ${file.name} (${datasets[type].length} dòng)`;
+                statusEl.textContent = `ÄÃ£ táº£i: ${file.name} (${datasets[type].length} dÃ²ng)`;
             }
             statusEl.classList.add('success');
             checkReady();
         } catch (err) {
             console.error(err);
-            statusEl.textContent = "Lỗi xử lý file: " + err.message;
+            statusEl.textContent = "Lá»—i xá»­ lÃ½ file: " + err.message;
             statusEl.style.color = "var(--danger)";
         }
     };
     reader.onerror = () => {
-        statusEl.textContent = "Lỗi đọc file từ máy tính!";
+        statusEl.textContent = "Lá»—i Ä‘á»c file tá»« mÃ¡y tÃ­nh!";
         statusEl.style.color = "var(--danger)";
     };
     reader.readAsArrayBuffer(file);
@@ -633,7 +633,7 @@ document.getElementById('file-trend_report').addEventListener('change', e => han
 document.getElementById('file-mapping').addEventListener('change', e => handleFileUpload(e, 'mapping'));
 document.getElementById('file-template').addEventListener('change', e => handleFileUpload(e, 'template'));
 
-// --- IndexedDB Caching cho các file cố định (Monthly, Weekly, Mapping) ---
+// --- IndexedDB Caching cho cÃ¡c file cá»‘ Ä‘á»‹nh (Monthly, Weekly, Mapping) ---
 const DB_NAME = "SOQ_V1";
 function initDB() {
     return new Promise((resolve, reject) => {
@@ -660,7 +660,7 @@ async function saveToDB(key, data) {
         let db = await initDB();
         let tx = db.transaction('files', 'readwrite');
         tx.objectStore('files').put(payload, key);
-    } catch (e) { console.error('Lỗi lưu cache', e); }
+    } catch (e) { console.error('Lá»—i lÆ°u cache', e); }
 }
 
 function getWeekStart(date) {
@@ -683,7 +683,7 @@ async function loadFromDB(key) {
         });
 
         if (!raw) return null;
-        if (Array.isArray(raw)) return raw; // Cache cổ điển 
+        if (Array.isArray(raw)) return raw; // Cache cá»• Ä‘iá»ƒn 
 
         if (raw.timestamp && raw.data) {
             let dDate = new Date(raw.timestamp);
@@ -691,25 +691,25 @@ async function loadFromDB(key) {
 
             if (key === 'monthly' || key === 'trend_report') {
                 if (dDate.getMonth() !== nDate.getMonth() || dDate.getFullYear() !== nDate.getFullYear()) {
-                    // Nếu là file tháng, chỉ xóa nếu quá 2 tháng (để user dùng được tháng trước + tháng này)
+                    // Náº¿u lÃ  file thÃ¡ng, chá»‰ xÃ³a náº¿u quÃ¡ 2 thÃ¡ng (Ä‘á»ƒ user dÃ¹ng Ä‘Æ°á»£c thÃ¡ng trÆ°á»›c + thÃ¡ng nÃ y)
                     let monthDiff = (nDate.getFullYear() - dDate.getFullYear()) * 12 + (nDate.getMonth() - dDate.getMonth());
                     if (monthDiff > 2) {
                         await deleteFromDB(key);
-                        return { invalidated: true, reason: "dữ liệu quá cũ (>2 tháng)" };
+                        return { invalidated: true, reason: "dá»¯ liá»‡u quÃ¡ cÅ© (>2 thÃ¡ng)" };
                     }
                 }
             } else if (key === 'weekly') {
-                // Hạn sử dụng của Doanh số tuần: Từ ngày tải lên (dDate) kéo dài đến Thứ 3 của tuần kế tiếp
+                // Háº¡n sá»­ dá»¥ng cá»§a Doanh sá»‘ tuáº§n: Tá»« ngÃ y táº£i lÃªn (dDate) kÃ©o dÃ i Ä‘áº¿n Thá»© 3 cá»§a tuáº§n káº¿ tiáº¿p
                 let expirationTime = getWeekStart(dDate) + 8 * 86400000; 
                 if (nDate.getTime() >= expirationTime) {
                     await deleteFromDB(key);
-                    return { invalidated: true, reason: "sang thứ 3 tuần mới" };
+                    return { invalidated: true, reason: "sang thá»© 3 tuáº§n má»›i" };
                 }
             } else if (key === 'soq_latest_array') {
-                // Hết hạn bộ nhớ tạm khi sang ngày mới
+                // Háº¿t háº¡n bá»™ nhá»› táº¡m khi sang ngÃ y má»›i
                 if (dDate.getDate() !== nDate.getDate() || dDate.getMonth() !== nDate.getMonth() || dDate.getFullYear() !== nDate.getFullYear()) {
                     await deleteFromDB(key);
-                    return { invalidated: true, reason: "đã sang ngày mới" };
+                    return { invalidated: true, reason: "Ä‘Ã£ sang ngÃ y má»›i" };
                 }
             }
             return raw.data;
@@ -719,7 +719,7 @@ async function loadFromDB(key) {
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
-    // Tự sinh Dropdown Chọn Ngày 1-31, mặc định nhảy vào số trùng với Hôm Nay (Today)
+    // Tá»± sinh Dropdown Chá»n NgÃ y 1-31, máº·c Ä‘á»‹nh nháº£y vÃ o sá»‘ trÃ¹ng vá»›i HÃ´m Nay (Today)
     let dateSelect = document.getElementById('targetDeliveryDate');
     if (dateSelect) {
         let tomorrow = new Date();
@@ -729,13 +729,13 @@ window.addEventListener('DOMContentLoaded', async () => {
         for (let i = 1; i <= 31; i++) {
             let opt = document.createElement('option');
             opt.value = i;
-            opt.text = "Ngày " + i;
+            opt.text = "NgÃ y " + i;
             if (i === targetDay) opt.selected = true;
             dateSelect.appendChild(opt);
         }
     }
 
-    // Tự động load lại Cache của Monthly, Weekly, Mapping File nếu có
+    // Tá»± Ä‘á»™ng load láº¡i Cache cá»§a Monthly, Weekly, Mapping File náº¿u cÃ³
     let [cMonthly, cWeekly, cMapping, cTemplate, cTrendReport, cSchedule, cInventory, cInput, cDeliveryDate] = await Promise.all([
         loadFromDB('monthly'), loadFromDB('weekly'), loadFromDB('mapping_raw'), loadFromDB('template_headers'), loadFromDB('trend_report'),
         loadFromDB('schedule'), loadFromDB('inventory'), loadFromDB('input'), loadFromDB('soq_latest_delivery_date')
@@ -750,7 +750,7 @@ window.addEventListener('DOMContentLoaded', async () => {
                 saveToDB('template_headers', cTemplate);
             }
         } catch (err) {
-            console.error("Lỗi lấy Form Mẫu từ Cloud, dùng Local:", err);
+            console.error("Lá»—i láº¥y Form Máº«u tá»« Cloud, dÃ¹ng Local:", err);
         }
     }
     
@@ -761,46 +761,46 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (cTemplate && cTemplate.length > 0) {
         datasets.template_headers = cTemplate;
         let el = document.getElementById('status-template');
-        if (el) { el.textContent = `Đã nạp Form Mẫu (${cTemplate.length} cột)`; el.classList.add('success'); }
+        if (el) { el.textContent = `ÄÃ£ náº¡p Form Máº«u (${cTemplate.length} cá»™t)`; el.classList.add('success'); }
     }
 
     if (cMonthly) {
         if (cMonthly.invalidated) {
             let el = document.getElementById('status-monthly');
-            if (el) { el.innerHTML = `<span style="color: #ff9800; font-weight: bold;">Lưu ý: Đã sang tháng mới. Vui lòng Tải Lên file cập nhật!</span>`; el.classList.remove('success'); }
+            if (el) { el.innerHTML = `<span style="color: #ff9800; font-weight: bold;">LÆ°u Ã½: ÄÃ£ sang thÃ¡ng má»›i. Vui lÃ²ng Táº£i LÃªn file cáº­p nháº­t!</span>`; el.classList.remove('success'); }
         } else if (cMonthly.length > 0) {
             datasets.monthly = cMonthly;
             let el = document.getElementById('status-monthly');
-            if (el) { el.textContent = `Đã dùng bản lưu trước (${cMonthly.length} dòng)`; el.classList.add('success'); }
+            if (el) { el.textContent = `ÄÃ£ dÃ¹ng báº£n lÆ°u trÆ°á»›c (${cMonthly.length} dÃ²ng)`; el.classList.add('success'); }
         }
     }
 
     if(cWeekly) {
         if (cWeekly.invalidated) {
             let el = document.getElementById('status-weekly');
-            if (el) { el.innerHTML = `<span style="color: #ff9800; font-weight: bold;">Lưu ý: Sang Thứ 3 tuần mới. Vui lòng tải số báo cáo tuần mới!</span>`; el.classList.remove('success'); }
+            if (el) { el.innerHTML = `<span style="color: #ff9800; font-weight: bold;">LÆ°u Ã½: Sang Thá»© 3 tuáº§n má»›i. Vui lÃ²ng táº£i sá»‘ bÃ¡o cÃ¡o tuáº§n má»›i!</span>`; el.classList.remove('success'); }
         } else if (cWeekly.length > 0) {
             datasets.weekly = cWeekly;
             let el = document.getElementById('status-weekly');
-            if (el) { el.textContent = `Đã dùng bản lưu trước (${cWeekly.length} dòng)`; el.classList.add('success'); }
+            if (el) { el.textContent = `ÄÃ£ dÃ¹ng báº£n lÆ°u trÆ°á»›c (${cWeekly.length} dÃ²ng)`; el.classList.add('success'); }
         }
     }
     
     if (cTrendReport) {
         if (cTrendReport.invalidated) {
             let el = document.getElementById('status-trend_report');
-            if (el) { el.innerHTML = `<span style="color: #ff9800; font-weight: bold;">Lưu ý: Đã sang tháng mới. Vui lòng Tải Lên file xu hướng bán mới!</span>`; el.classList.remove('success'); }
+            if (el) { el.innerHTML = `<span style="color: #ff9800; font-weight: bold;">LÆ°u Ã½: ÄÃ£ sang thÃ¡ng má»›i. Vui lÃ²ng Táº£i LÃªn file xu hÆ°á»›ng bÃ¡n má»›i!</span>`; el.classList.remove('success'); }
         } else if (cTrendReport.length > 0) {
             datasets.trend_report = cTrendReport;
             let el = document.getElementById('status-trend_report');
-            if (el) { el.textContent = `Đã dùng bản lưu trước (${cTrendReport.length} dòng)`; el.classList.add('success'); }
+            if (el) { el.textContent = `ÄÃ£ dÃ¹ng báº£n lÆ°u trÆ°á»›c (${cTrendReport.length} dÃ²ng)`; el.classList.add('success'); }
         }
     }
 
     if (cMapping && cMapping.length > 0) {
         datasets.mapping_raw = cMapping;
         let el = document.getElementById('status-mapping');
-        if (el) { el.textContent = `Đã dùng bản lưu trước (${cMapping.length} dòng)`; el.classList.add('success'); }
+        if (el) { el.textContent = `ÄÃ£ dÃ¹ng báº£n lÆ°u trÆ°á»›c (${cMapping.length} dÃ²ng)`; el.classList.add('success'); }
     }
 
     if (cSchedule && cSchedule.length > 0) {
@@ -809,7 +809,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         if (el) {
             let savedName = await loadFromDB('soq_latest_filename');
             if (savedName) scheduleFileName = savedName;
-            el.textContent = `Đã dùng bản lưu trước (${cSchedule.length} dòng)`;
+            el.textContent = `ÄÃ£ dÃ¹ng báº£n lÆ°u trÆ°á»›c (${cSchedule.length} dÃ²ng)`;
             el.classList.add('success');
         }
     }
@@ -817,13 +817,13 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (cInventory && cInventory.length > 0) {
         datasets.inventory = cInventory;
         let el = document.getElementById('status-inventory');
-        if (el) { el.textContent = `Đã dùng bản lưu trước (${cInventory.length} dòng)`; el.classList.add('success'); }
+        if (el) { el.textContent = `ÄÃ£ dÃ¹ng báº£n lÆ°u trÆ°á»›c (${cInventory.length} dÃ²ng)`; el.classList.add('success'); }
     }
 
     if (cInput && cInput.length > 0) {
         datasets.input = cInput;
         let el = document.getElementById('status-input');
-        if (el) { el.textContent = `Đã dùng bản lưu trước (${cInput.length} dòng)`; el.classList.add('success'); }
+        if (el) { el.textContent = `ÄÃ£ dÃ¹ng báº£n lÆ°u trÆ°á»›c (${cInput.length} dÃ²ng)`; el.classList.add('success'); }
     }
 
     buildMetadataMaps();
@@ -834,7 +834,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 function checkReady() {
     if (datasets.schedule && datasets.inventory && datasets.input && datasets.monthly && datasets.weekly) {
         btnCalculate.disabled = false;
-        btnCalculate.textContent = "Tiến hành tính SOQ";
+        btnCalculate.textContent = "Tiáº¿n hÃ nh tÃ­nh SOQ";
     }
 }
 
@@ -864,8 +864,8 @@ function archiveTodayData() {
     saveToDB('soq_archive_' + dateStr, archivePayload);
 
     if (typeof firebase !== 'undefined') {
-        let userName = inputUserName ? inputUserName.value.trim() : "Hệ thống";
-        if (!userName) userName = "Ẩn danh";
+        let userName = inputUserName ? inputUserName.value.trim() : "Há»‡ thá»‘ng";
+        if (!userName) userName = "áº¨n danh";
         
         const cloudPayload = {
             filename: scheduleFileName,
@@ -877,15 +877,15 @@ function archiveTodayData() {
         };
         
         firebase.database().ref('archive_soq/' + dateStr).set(cloudPayload)
-            .then(() => console.log(`Đã lưu trữ dữ liệu ngày ${dateStr} lên Cloud.`))
-            .catch(err => console.error("Lỗi lưu trữ Cloud:", err));
+            .then(() => console.log(`ÄÃ£ lÆ°u trá»¯ dá»¯ liá»‡u ngÃ y ${dateStr} lÃªn Cloud.`))
+            .catch(err => console.error("Lá»—i lÆ°u trá»¯ Cloud:", err));
     }
 }
 
 function extractSAP(str) {
     if (!str) return "";
     let s = String(str).trim();
-    // Ưu tiên: Nếu là chuỗi số đứng độc lập (có thể có chữ bao quanh bởi dấu cách) -> Lấy số
+    // Æ¯u tiÃªn: Náº¿u lÃ  chuá»—i sá»‘ Ä‘á»©ng Ä‘á»™c láº­p (cÃ³ thá»ƒ cÃ³ chá»¯ bao quanh bá»Ÿi dáº¥u cÃ¡ch) -> Láº¥y sá»‘
     let m = s.match(/\b\d+\b/);
     if (m) return Number(m[0]).toString();
     
@@ -897,43 +897,43 @@ btnCalculate.addEventListener('click', () => {
         tbody.innerHTML = "";
         finalResults = [];
         resultsSection.style.display = 'none';
-        // --- KIỂM TRA DỮ LIỆU ĐẦU VÀO ---
+        // --- KIá»‚M TRA Dá»® LIá»†U Äáº¦U VÃ€O ---
         if (!datasets.schedule || datasets.schedule.length === 0) {
-            alert("Vui lòng tải file Lịch giao hàng (Schedule)!");
+            alert("Vui lÃ²ng táº£i file Lá»‹ch giao hÃ ng (Schedule)!");
             return;
         }
         if (!datasets.inventory || datasets.inventory.length === 0) {
-            alert("Vui lòng tải file Tồn kho (Merchandiser)!");
+            alert("Vui lÃ²ng táº£i file Tá»“n kho (Merchandiser)!");
             return;
         }
         if (!datasets.monthly || datasets.monthly.length === 0) {
-            alert("Vui lòng tải file Doanh số tháng (Monthly Sales)!");
+            alert("Vui lÃ²ng táº£i file Doanh sá»‘ thÃ¡ng (Monthly Sales)!");
             return;
         }
-        // Tip: Mapping là bắt buộc nếu muốn dùng tính năng lọc mẫu (strict mapping)
+        // Tip: Mapping lÃ  báº¯t buá»™c náº¿u muá»‘n dÃ¹ng tÃ­nh nÄƒng lá»c máº«u (strict mapping)
         if (!datasets.mapping_raw || datasets.mapping_raw.length === 0) {
-            alert("Lưu ý: Bạn chưa tải file Mapping. Hệ thống sẽ lấy tên gốc từ file doanh số.");
+            alert("LÆ°u Ã½: Báº¡n chÆ°a táº£i file Mapping. Há»‡ thá»‘ng sáº½ láº¥y tÃªn gá»‘c tá»« file doanh sá»‘.");
         }
 
-        // --- TÍNH TOÁN NGÀY GIAO HÀNG (WEEKEND HAY WEEKDAY) ---
+        // --- TÃNH TOÃN NGÃ€Y GIAO HÃ€NG (WEEKEND HAY WEEKDAY) ---
         const getWeekdayIdxGlobal = (str) => {
             let s = String(str).trim().toLowerCase();
             const w = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
             let idx = w.indexOf(s);
             if (idx !== -1) return idx;
-            if (s === 'cn' || s === 'chủ nhật' || s === 'sun') return 0;
-            if (s === 't2' || s === 'thứ 2' || s === 'thứ hai' || s === 'mon') return 1;
-            if (s === 't3' || s === 'thứ 3' || s === 'thứ ba' || s === 'tue') return 2;
-            if (s === 't4' || s === 'thứ 4' || s === 'thứ tư' || s === 'wed') return 3;
-            if (s === 't5' || s === 'thứ 5' || s === 'thứ năm' || s === 'thu') return 4;
-            if (s === 't6' || s === 'thứ 6' || s === 'thứ sáu' || s === 'fri') return 5;
-            if (s === 't7' || s === 'thứ 7' || s === 'thứ bảy' || s === 'sat') return 6;
+            if (s === 'cn' || s === 'chá»§ nháº­t' || s === 'sun') return 0;
+            if (s === 't2' || s === 'thá»© 2' || s === 'thá»© hai' || s === 'mon') return 1;
+            if (s === 't3' || s === 'thá»© 3' || s === 'thá»© ba' || s === 'tue') return 2;
+            if (s === 't4' || s === 'thá»© 4' || s === 'thá»© tÆ°' || s === 'wed') return 3;
+            if (s === 't5' || s === 'thá»© 5' || s === 'thá»© nÄƒm' || s === 'thu') return 4;
+            if (s === 't6' || s === 'thá»© 6' || s === 'thá»© sÃ¡u' || s === 'fri') return 5;
+            if (s === 't7' || s === 'thá»© 7' || s === 'thá»© báº£y' || s === 'sat') return 6;
             return -1;
         };
 
         let targetDateStr = document.getElementById('targetDeliveryDate') ? document.getElementById('targetDeliveryDate').value.trim() : "";
         let isWeekendDelivery = false;
-        let targetTimestamp = 0; // Để tính toán Lead Time Arrival
+        let targetTimestamp = 0; // Äá»ƒ tÃ­nh toÃ¡n Lead Time Arrival
 
         if (targetDateStr !== "") {
             let isTgtWkday = getWeekdayIdxGlobal(targetDateStr) !== -1;
@@ -945,13 +945,13 @@ btnCalculate.addEventListener('click', () => {
 
             if (isTgtWkday) {
                 finalWkday = tgtNum;
-                // Tìm ngày gần nhất khớp với thứ được chọn (ví dụ Thứ 6 gần nhất)
+                // TÃ¬m ngÃ y gáº§n nháº¥t khá»›p vá»›i thá»© Ä‘Æ°á»£c chá»n (vÃ­ dá»¥ Thá»© 6 gáº§n nháº¥t)
                 let diff = (tgtNum - dTarget.getDay() + 7) % 7;
-                // Nếu diff = 0 thì có thể là hôm nay, nhưng thường là đặt cho tuần sau hoặc hôm nay vẫn tính sales?
-                // Giữ nguyên logic cũ cho finalWkday nhưng tính thêm timestamp
+                // Náº¿u diff = 0 thÃ¬ cÃ³ thá»ƒ lÃ  hÃ´m nay, nhÆ°ng thÆ°á»ng lÃ  Ä‘áº·t cho tuáº§n sau hoáº·c hÃ´m nay váº«n tÃ­nh sales?
+                // Giá»¯ nguyÃªn logic cÅ© cho finalWkday nhÆ°ng tÃ­nh thÃªm timestamp
                 dTarget.setDate(dTarget.getDate() + diff);
             } else if (tgtNum > 0) {
-                // Nếu ngày gõ < hôm nay quá nhiều (ví dụ nay 28, gõ 2) -> Sang tháng sau
+                // Náº¿u ngÃ y gÃµ < hÃ´m nay quÃ¡ nhiá»u (vÃ­ dá»¥ nay 28, gÃµ 2) -> Sang thÃ¡ng sau
                 if (tgtNum < dTarget.getDate() - 7) {
                     dTarget.setMonth(dTarget.getMonth() + 1);
                 }
@@ -961,14 +961,14 @@ btnCalculate.addEventListener('click', () => {
 
             targetTimestamp = dTarget.getTime();
 
-            // LƯU LẠI NGÀY GIAO HÀNG ĐỂ LƯU TRỮ
+            // LÆ¯U Láº I NGÃ€Y GIAO HÃ€NG Äá»‚ LÆ¯U TRá»®
             const year = dTarget.getFullYear();
             const month = String(dTarget.getMonth() + 1).padStart(2, '0');
             const day = String(dTarget.getDate()).padStart(2, '0');
             currentDeliveryDateStr = `${year}-${month}-${day}`;
             saveToDB('soq_latest_delivery_date', currentDeliveryDateStr);
 
-            // Cuối tuần: Thứ 7 (6), Chủ nhật (0)
+            // Cuá»‘i tuáº§n: Thá»© 7 (6), Chá»§ nháº­t (0)
             if (finalWkday === 6 || finalWkday === 0) {
                 isWeekendDelivery = true;
             }
@@ -983,24 +983,24 @@ btnCalculate.addEventListener('click', () => {
 
         // ----------- 1. Map Rules (WM Name -> ODA Name) -----------
         const mappingMap = new Map();
-        const standardNamesSet = new Set(); // Lưu danh sách Tên ODA chuẩn
-        const unmappedProducts = new Set(); // Tracking sản phẩm chưa được mapping
-        const reverseMappingKeys = new Set(); // Dùng để kiểm tra sản phẩm lạ
-        const productCategoryMap = new Map(); // Lưu nhóm hàng mảng Penalty
+        const standardNamesSet = new Set(); // LÆ°u danh sÃ¡ch TÃªn ODA chuáº©n
+        const unmappedProducts = new Set(); // Tracking sáº£n pháº©m chÆ°a Ä‘Æ°á»£c mapping
+        const reverseMappingKeys = new Set(); // DÃ¹ng Ä‘á»ƒ kiá»ƒm tra sáº£n pháº©m láº¡
+        const productCategoryMap = new Map(); // LÆ°u nhÃ³m hÃ ng máº£ng Penalty
 
         if (datasets.mapping_raw && datasets.mapping_raw.length > 0) {
             let headerRow = datasets.mapping_raw[0] || [];
             let iOda = 1, iWm = 2, iCat = 3;
 
-            // Nhận diện tự động cột bằng Tên Header
+            // Nháº­n diá»‡n tá»± Ä‘á»™ng cá»™t báº±ng TÃªn Header
             for (let c = 0; c < headerRow.length; c++) {
                 let h = String(headerRow[c]).toUpperCase();
                 if (h.includes('ODA')) iOda = c;
                 else if (h.includes('WM')) iWm = c;
-                else if (h.includes('NHÓM')) iCat = c;
+                else if (h.includes('NHÃ“M')) iCat = c;
             }
 
-            // Bắt đầu đọc từ dòng số 2 (Bỏ qua Header)
+            // Báº¯t Ä‘áº§u Ä‘á»c tá»« dÃ²ng sá»‘ 2 (Bá» qua Header)
             for (let i = 1; i < datasets.mapping_raw.length; i++) {
                 let r = datasets.mapping_raw[i];
                 if (!r || !Array.isArray(r)) continue;
@@ -1009,18 +1009,18 @@ btnCalculate.addEventListener('click', () => {
                 let wmName = r[iWm] ? String(r[iWm]).trim().toLowerCase() : '';
                 let category = r[iCat] ? String(r[iCat]).trim().toUpperCase() : '';
 
-                // Nếu ko có Header (file trống trơn 2 cột), chạy fallback truyền thống
+                // Náº¿u ko cÃ³ Header (file trá»‘ng trÆ¡n 2 cá»™t), cháº¡y fallback truyá»n thá»‘ng
                 if (!odaName && !wmName && r.length >= 2) {
                     wmName = r[0] ? String(r[0]).trim().toLowerCase() : '';
                     odaName = r[1] ? String(r[1]).trim() : '';
                 }
 
-                if (wmName && odaName && wmName !== 'tên sản phẩm wm') {
+                if (wmName && odaName && wmName !== 'tÃªn sáº£n pháº©m wm') {
                     mappingMap.set(wmName, odaName);
                     standardNamesSet.add(odaName.trim().toLowerCase());
                     reverseMappingKeys.add(wmName);
 
-                    if (category && category !== 'NHÓM HÀNG') {
+                    if (category && category !== 'NHÃ“M HÃ€NG') {
                         productCategoryMap.set(odaName.trim().toLowerCase(), category);
                     }
                 }
@@ -1029,14 +1029,14 @@ btnCalculate.addEventListener('click', () => {
 
         const normalizeProductName = (name) => {
             let n = String(name).trim().toLowerCase();
-            // 1. Nếu là Tên WM -> Trả về Tên ODA chuẩn
+            // 1. Náº¿u lÃ  TÃªn WM -> Tráº£ vá» TÃªn ODA chuáº©n
             if (mappingMap.has(n)) return String(mappingMap.get(n)).trim();
-            // 2. Nếu chính nó đã là Tên ODA chuẩn -> Trả về chính nó
+            // 2. Náº¿u chÃ­nh nÃ³ Ä‘Ã£ lÃ  TÃªn ODA chuáº©n -> Tráº£ vá» chÃ­nh nÃ³
             if (standardNamesSet.has(n)) return String(name).trim();
 
-            // Nếu có nạp file mapping mà không thấy mã này -> Coi như không hợp lệ (Trả về null để lọc bỏ)
+            // Náº¿u cÃ³ náº¡p file mapping mÃ  khÃ´ng tháº¥y mÃ£ nÃ y -> Coi nhÆ° khÃ´ng há»£p lá»‡ (Tráº£ vá» null Ä‘á»ƒ lá»c bá»)
             if (datasets.mapping_raw && datasets.mapping_raw.length > 0) return null;
-            return String(name).trim(); // Fallback nếu chưa nạp mapping
+            return String(name).trim(); // Fallback náº¿u chÆ°a náº¡p mapping
         }
 
         // --- 2. Schedule Filter & Store Names ---
@@ -1049,13 +1049,13 @@ btnCalculate.addEventListener('click', () => {
 
         if (datasets.schedule && datasets.schedule.length > 0) {
             datasets.schedule.forEach(row => {
-                let store = row['sap'] || row['storekey'] || row['storecode'] || row['makho'] || row['mach'] || row['mãkháchhàng'] || row['mãcửahàng'] || row['nickname'] || row['storename'] || row['store'];
+                let store = row['sap'] || row['storekey'] || row['storecode'] || row['makho'] || row['mach'] || row['mÃ£khÃ¡chhÃ ng'] || row['mÃ£cá»­ahÃ ng'] || row['nickname'] || row['storename'] || row['store'];
                 if (!store) return;
 
                 let storeID = extractSAP(store);
-                let region = String(row['khuvuc'] || row['khuvực'] || row['region'] || 'Khác').trim();
+                let region = String(row['khuvuc'] || row['khuvá»±c'] || row['region'] || 'KhÃ¡c').trim();
                 storeRegionMap.set(storeID, region);
-                let hinhThuc = String(row['hinhthuc'] || row['Hình thức'] || row['type'] || '').toUpperCase();
+                let hinhThuc = String(row['hinhthuc'] || row['HÃ¬nh thá»©c'] || row['type'] || '').toUpperCase();
 
                 let dynamicLT = 0;
                 const getWeekdayIdx = getWeekdayIdxGlobal;
@@ -1068,8 +1068,8 @@ btnCalculate.addEventListener('click', () => {
 
                     let possibleNextDeliveryTimestamps = [];
 
-                    // Khởi tạo biến kiểm tra Chức năng (Function) của Store
-                    let isMer = String(row['function'] || row['Function'] || row['chức năng'] || row['loại'] || '').trim().toLowerCase() === 'mer';
+                    // Khá»Ÿi táº¡o biáº¿n kiá»ƒm tra Chá»©c nÄƒng (Function) cá»§a Store
+                    let isMer = String(row['function'] || row['Function'] || row['chá»©c nÄƒng'] || row['loáº¡i'] || '').trim().toLowerCase() === 'mer';
 
                     for (const [key, val] of Object.entries(row)) {
                         let k = String(key).trim();
@@ -1078,7 +1078,7 @@ btnCalculate.addEventListener('click', () => {
 
                         let headerWeekdayIdx = getWeekdayIdx(k);
 
-                        // Nếu Header file Lịch là THỨ (VD: Friday, T2)
+                        // Náº¿u Header file Lá»‹ch lÃ  THá»¨ (VD: Friday, T2)
                         if (headerWeekdayIdx !== -1) {
                             if (isTargetWeekday) {
                                 match = (headerWeekdayIdx === currentTargetNum);
@@ -1086,24 +1086,24 @@ btnCalculate.addEventListener('click', () => {
                                 match = (headerWeekdayIdx === impliedWeekdayIdx);
                             }
                         } else {
-                        // Xử lý Header phức hợp (vd: 01-Thg4_Wednesday) hoặc Header đơn thuần
+                        // Xá»­ lÃ½ Header phá»©c há»£p (vd: 01-Thg4_Wednesday) hoáº·c Header Ä‘Æ¡n thuáº§n
                         let kClean = k.toLowerCase();
                         
-                        // Lấy số ngày của mục tiêu (VD: 1 hoặc 01)
+                        // Láº¥y sá»‘ ngÃ y cá»§a má»¥c tiÃªu (VD: 1 hoáº·c 01)
                         let tNum = new Date(targetTimestamp).getDate().toString();
                         let tPadded = tNum.padStart(2, '0');
 
-                        // 1. So khớp Số ngày trực tiếp: "01", "1", "1-", "01-"
+                        // 1. So khá»›p Sá»‘ ngÃ y trá»±c tiáº¿p: "01", "1", "1-", "01-"
                         let dateMatch = kClean.startsWith(tNum + '-') || kClean.startsWith(tPadded + '-') || 
                                        kClean.includes('_' + tNum + '-') || kClean.includes('_' + tPadded + '-');
                         
-                        // 2. So khớp Số ngày viết liền (Ví dụ: 01thg4)
+                        // 2. So khá»›p Sá»‘ ngÃ y viáº¿t liá»n (VÃ­ dá»¥: 01thg4)
                         if (!dateMatch) {
                             let m = kClean.match(/^(\d{1,2})/);
                             if (m && (m[1] === tNum || m[1] === tPadded)) dateMatch = true;
                         }
 
-                        // 3. So khớp Serial Date nếu có trong Key
+                        // 3. So khá»›p Serial Date náº¿u cÃ³ trong Key
                         let serialMatch = false;
                         let serialInKey = kClean.match(/(\d{5})/);
                         if (serialInKey) {
@@ -1115,25 +1115,25 @@ btnCalculate.addEventListener('click', () => {
                             }
                         }
 
-                        // NEW: Trích xuất Timestamp cho tất cả các cột nếu có định dạng ngày (vd: 01-thg4)
+                        // NEW: TrÃ­ch xuáº¥t Timestamp cho táº¥t cáº£ cÃ¡c cá»™t náº¿u cÃ³ Ä‘á»‹nh dáº¡ng ngÃ y (vd: 01-thg4)
                         if (headerTs === 0) {
-                            // Thử bóc tách ngày/tháng từ chuỗi "01-thg4"
+                            // Thá»­ bÃ³c tÃ¡ch ngÃ y/thÃ¡ng tá»« chuá»—i "01-thg4"
                             let mDate = kClean.match(/^(\d{1,2})[^\d]+(\d{1,2})/);
                             if (mDate) {
                                 let dd = parseInt(mDate[1]);
                                 let mm = parseInt(mDate[2]) - 1;
                                 let yyyy = new Date(targetTimestamp).getFullYear();
                                 let dTemp = new Date(yyyy, mm, dd);
-                                // Nếu ngày quá xa mục tiêu (vd: tháng 12 so với tháng 1), lùi/tiến năm
+                                // Náº¿u ngÃ y quÃ¡ xa má»¥c tiÃªu (vd: thÃ¡ng 12 so vá»›i thÃ¡ng 1), lÃ¹i/tiáº¿n nÄƒm
                                 headerTs = dTemp.getTime();
                             } else {
-                                // Thử bóc tách ngày đơn thuần (vd: 01) -> Giả định cùng tháng/năm với target
+                                // Thá»­ bÃ³c tÃ¡ch ngÃ y Ä‘Æ¡n thuáº§n (vd: 01) -> Giáº£ Ä‘á»‹nh cÃ¹ng thÃ¡ng/nÄƒm vá»›i target
                                 let mDay = kClean.match(/^(\d{1,2})/);
                                 if (mDay) {
                                     let dd = parseInt(mDay[1]);
                                     let tDate = new Date(targetTimestamp);
                                     let dTemp = new Date(tDate.getFullYear(), tDate.getMonth(), dd);
-                                    // Xử lý rollover tháng nếu cần (vd: target là 31/3, header là 1)
+                                    // Xá»­ lÃ½ rollover thÃ¡ng náº¿u cáº§n (vd: target lÃ  31/3, header lÃ  1)
                                     if (dd < tDate.getDate() - 15) dTemp.setMonth(dTemp.getMonth() + 1);
                                     if (dd > tDate.getDate() + 15) dTemp.setMonth(dTemp.getMonth() - 1);
                                     headerTs = dTemp.getTime();
@@ -1141,11 +1141,11 @@ btnCalculate.addEventListener('click', () => {
                             }
                         }
                         
-                        // ƯU TIÊN: Nếu Header chứa thông tin NGÀY CỐ ĐỊNH, nó sẽ ghi đè việc so khớp THỨ chung chung
+                        // Æ¯U TIÃŠN: Náº¿u Header chá»©a thÃ´ng tin NGÃ€Y Cá» Äá»ŠNH, nÃ³ sáº½ ghi Ä‘Ã¨ viá»‡c so khá»›p THá»¨ chung chung
                         if (dateMatch || serialMatch) {
                             match = true;
                         } else if (!isTargetWeekday && headerWeekdayIdx === -1) {
-                            // Fallback nếu headers quá đơn giản (chỉ "1", "2")
+                            // Fallback náº¿u headers quÃ¡ Ä‘Æ¡n giáº£n (chá»‰ "1", "2")
                             match = (k === tNum || k === tPadded || k.startsWith(tNum + '/') || k.startsWith(tPadded + '/'));
                         }
                         }
@@ -1153,17 +1153,17 @@ btnCalculate.addEventListener('click', () => {
                         let v = String(val).trim().toLowerCase().replace(/\s+/g, '');
                         let isDeliveryFound = false;
 
-                        if (v && v !== '0' && v !== 'false' && v !== 'off' && !v.includes('nghỉ')) {
+                        if (v && v !== '0' && v !== 'false' && v !== 'off' && !v.includes('nghá»‰')) {
                             if (isMer) {
-                                // Rule Function Mer: Chịu trách nhiệm giao dịch nếu có mặt NVCH
-                                // Từ chối những CH đi thăm (chỉ ghi "NVCH"). Phải ghi "Shipper+NVCH" hoặc có dấu "+"
+                                // Rule Function Mer: Chá»‹u trÃ¡ch nhiá»‡m giao dá»‹ch náº¿u cÃ³ máº·t NVCH
+                                // Tá»« chá»‘i nhá»¯ng CH Ä‘i thÄƒm (chá»‰ ghi "NVCH"). Pháº£i ghi "Shipper+NVCH" hoáº·c cÃ³ dáº¥u "+"
                                 if ((v.includes('shipper') && v.includes('nvch')) || (v.includes('nvch') && v.includes('+')) || v.includes('giao')) {
                                     isDeliveryFound = true;
                                 } else if (v === 'x' || v === 'yes' || v === 'true') {
-                                    isDeliveryFound = true; // Fallback an toàn
+                                    isDeliveryFound = true; // Fallback an toÃ n
                                 }
                             } else {
-                                // Nếu không phải Function Mer (hoặc không có cột Function), mọi tín hiệu như Shipper, X đều tính
+                                // Náº¿u khÃ´ng pháº£i Function Mer (hoáº·c khÃ´ng cÃ³ cá»™t Function), má»i tÃ­n hiá»‡u nhÆ° Shipper, X Ä‘á»u tÃ­nh
                                 isDeliveryFound = true;
                             }
                         }
@@ -1172,11 +1172,11 @@ btnCalculate.addEventListener('click', () => {
                             if (match) {
                                 hasDelivery = true;
                             }
-                            // Theo dõi tất cả các mốc có giao hàng tiếp theo (Dạng Timestamp)
+                            // Theo dÃµi táº¥t cáº£ cÃ¡c má»‘c cÃ³ giao hÃ ng tiáº¿p theo (Dáº¡ng Timestamp)
                             if (headerTs > 0) {
                                 possibleNextDeliveryTimestamps.push(headerTs);
                             } else if (headerWeekdayIdx !== -1) {
-                                // Nếu là THỨ, quy đổi sang timestamp tương ứng trong tuần đó/tuần sau
+                                // Náº¿u lÃ  THá»¨, quy Ä‘á»•i sang timestamp tÆ°Æ¡ng á»©ng trong tuáº§n Ä‘Ã³/tuáº§n sau
                                 let dTarget = new Date(targetTimestamp);
                                 let diff = (headerWeekdayIdx - dTarget.getDay() + 7) % 7;
                                 let dNext = new Date(dTarget);
@@ -1186,18 +1186,18 @@ btnCalculate.addEventListener('click', () => {
                         }
                     }
 
-                    // Nếu không có lịch giao -> Bỏ qua
+                    // Náº¿u khÃ´ng cÃ³ lá»‹ch giao -> Bá» qua
                     if (!hasDelivery) return;
 
-                    // --- TÍNH TOÁN LEADTIME ĐỘNG TỪ MA TRẬN LỊCH GIAO HÀNG (Dạng Timestamp) ---
-                    let futureDates = possibleNextDeliveryTimestamps.filter(t => t > targetTimestamp + 3600000); // Cách ít nhất 1h
+                    // --- TÃNH TOÃN LEADTIME Äá»˜NG Tá»ª MA TRáº¬N Lá»ŠCH GIAO HÃ€NG (Dáº¡ng Timestamp) ---
+                    let futureDates = possibleNextDeliveryTimestamps.filter(t => t > targetTimestamp + 3600000); // CÃ¡ch Ã­t nháº¥t 1h
                     if (futureDates.length > 0) {
                         let nextTS = Math.min(...futureDates);
                         dynamicLT = Math.round((nextTS - targetTimestamp) / 86400000);
                     }
                 }
 
-                // Mặc định: Chấp nhận TẤT CẢ các mã cửa hàng miễn là có tên trong file Lịch Giao Hàng
+                // Máº·c Ä‘á»‹nh: Cháº¥p nháº­n Táº¤T Cáº¢ cÃ¡c mÃ£ cá»­a hÃ ng miá»…n lÃ  cÃ³ tÃªn trong file Lá»‹ch Giao HÃ ng
                 if (storeID) {
                     validSAPs.add(storeID);
 
@@ -1206,27 +1206,27 @@ btnCalculate.addEventListener('click', () => {
 
                     if (sName) storeNamesMap.set(storeID, String(sName).trim());
 
-                    // Đăng ký Alias
+                    // ÄÄƒng kÃ½ Alias
                     if (!storeAliasesMap.has(storeID)) storeAliasesMap.set(storeID, new Set());
                     if (sName) storeAliasesMap.get(storeID).add(normalizeKey(sName));
                     if (nickname) storeAliasesMap.get(storeID).add(normalizeKey(nickname));
                     storeAliasesMap.get(storeID).add(normalizeKey(storeID));
 
-                    // LƯU CỘT TIER
-                    let tierVal = String(row['tier'] || row['Tier'] || row['cấpđộ'] || row['phânloại'] || '').trim().toUpperCase();
+                    // LÆ¯U Cá»˜T TIER
+                    let tierVal = String(row['tier'] || row['Tier'] || row['cáº¥pÄ‘á»™'] || row['phÃ¢nloáº¡i'] || '').trim().toUpperCase();
                     if (tierVal && tierVal !== 'UNDEFINED') storeTierMap.set(storeID, tierVal);
 
                     if (dynamicLT > 0) {
                         scheduleLeadtimeMap.set(storeID, dynamicLT); 
                     } else {
-                        let lt = Number(row['leadtime'] || row['Leadtime'] || row['chu kỳ'] || row['chukỳ'] || 0);
+                        let lt = Number(row['leadtime'] || row['Leadtime'] || row['chu ká»³'] || row['chuká»³'] || 0);
                         if (lt > 0) scheduleLeadtimeMap.set(storeID, lt);
                     }
                 }
             });
         }
 
-        // Helper: Bóc tách Leadtime từ tên file Lịch Giao Hàng (VD: Lịch 2003-2203 -> 3 ngày)
+        // Helper: BÃ³c tÃ¡ch Leadtime tá»« tÃªn file Lá»‹ch Giao HÃ ng (VD: Lá»‹ch 2003-2203 -> 3 ngÃ y)
         const extractLeadtimeFromFilename = (filename) => {
             let match = filename.match(/(\d{2})(\d{2})-(\d{2})(\d{2})/);
             if (match) {
@@ -1249,7 +1249,7 @@ btnCalculate.addEventListener('click', () => {
             return 1; // Fallback
         };
 
-        // TẠO BẢN ĐỒ NGƯỢC SỚM: Tên Store (Chuẩn hóa) / Nickname -> Mã SAP để xử lý Tồn Kho & Nhập
+        // Táº O Báº¢N Äá»’ NGÆ¯á»¢C Sá»šM: TÃªn Store (Chuáº©n hÃ³a) / Nickname -> MÃ£ SAP Ä‘á»ƒ xá»­ lÃ½ Tá»“n Kho & Nháº­p
         const reverseStoreNamesMap = new Map();
         const buildReverseMap = () => {
             storeAliasesMap.forEach((aliases, id) => {
@@ -1262,7 +1262,7 @@ btnCalculate.addEventListener('click', () => {
                 reverseStoreNamesMap.set(id, id);
             });
         };
-        // Build lần 1: Lấy dữ liệu Alias từ file Lịch giao hàng (Schedule) làm gốc
+        // Build láº§n 1: Láº¥y dá»¯ liá»‡u Alias tá»« file Lá»‹ch giao hÃ ng (Schedule) lÃ m gá»‘c
         buildReverseMap();
 
         const resolveStoreID = (rawSap, nick) => {
@@ -1276,7 +1276,7 @@ btnCalculate.addEventListener('click', () => {
                 if (!lookedUp) {
                     for (let [alias, id] of reverseStoreNamesMap.entries()) {
                         if (alias && nKey && (alias.includes(nKey) || nKey.includes(alias))) {
-                            if (alias.length > 5 || nKey.length > 5) { // Tránh nhầm lẫn chữ tắt quá ngắn
+                            if (alias.length > 5 || nKey.length > 5) { // TrÃ¡nh nháº§m láº«n chá»¯ táº¯t quÃ¡ ngáº¯n
                                 lookedUp = id;
                                 break;
                             }
@@ -1291,7 +1291,7 @@ btnCalculate.addEventListener('click', () => {
         const trendReportMap = new Map();
         if (datasets.trend_report && datasets.trend_report.length > 0) {
             datasets.trend_report.forEach(row => {
-                let st = row['sap'] || row['storecode'] || row['store'] || row['mach'] || row['tencuahang'] || row['têncửahàng'];
+                let st = row['sap'] || row['storecode'] || row['store'] || row['mach'] || row['tencuahang'] || row['tÃªncá»­ahÃ ng'];
                 let pr = row['productnameprimarylanguage'] || row['productname'] || row['product'] || row['tensanpham'] || row['productnameprimarylanguage'];
                 
                 if (!pr) {
@@ -1320,7 +1320,7 @@ btnCalculate.addEventListener('click', () => {
             });
         }
 
-        // --- BƯỚC 0: TÌM NGÀY LỚN NHẤT CỦA TỪNG STORE LÀM MỐC (T) ---
+        // --- BÆ¯á»šC 0: TÃŒM NGÃ€Y Lá»šN NHáº¤T Cá»¦A Tá»ªNG STORE LÃ€M Má»C (T) ---
         const storeMaxInvDateMap = new Map();
         const storeMaxOrderDateMap = new Map();
 
@@ -1333,7 +1333,7 @@ btnCalculate.addEventListener('click', () => {
                     let lookedUp = reverseStoreNamesMap.get(normalizeKey(store));
                     if (lookedUp) storeID = lookedUp;
                 }
-                let rawDate = row['date'] || row['Date'] || row['ngay'] || row['ngày'] || 0;
+                let rawDate = row['date'] || row['Date'] || row['ngay'] || row['ngÃ y'] || 0;
                 let cDate = parseDateStrToTime(rawDate);
                 if (cDate > 0) {
                     let currentMax = storeMaxInvDateMap.get(storeID) || 0;
@@ -1390,7 +1390,7 @@ btnCalculate.addEventListener('click', () => {
                 let sName = row['tencuahang'] || row['tncahng'] || row['storename'] || row['store'];
                 if (sName && !storeNamesMap.has(storeID)) storeNamesMap.set(storeID, String(sName).trim());
 
-                let rawDate = row['date'] || row['Date'] || row['ngay'] || row['ngày'] || 0;
+                let rawDate = row['date'] || row['Date'] || row['ngay'] || row['ngÃ y'] || 0;
                 let cDate = parseDateStrToTime(rawDate);
 
                 let T = storeMasterDateMap.get(storeID);
@@ -1403,7 +1403,7 @@ btnCalculate.addEventListener('click', () => {
                 }
                 let key = `${storeID}_${prodStd.toLowerCase()}`;
 
-                // ... (Quy đổi kg)
+                // ... (Quy Ä‘á»•i kg)
                 let inv = Number(String(row['tonkho'] || row['stock'] || row['ton'] || row['inventory'] || row['inventoryquantity'] || row['inventoryamount'] || row['stkinv'] || '0').replace(/,/g, ''));
                 let disp = Number(String(row['huy'] || row['disposal'] || row['scrap'] || row['tonhuy'] || row['disposalquantity'] || row['disposalamount'] || '0').replace(/,/g, ''));
 
@@ -1425,7 +1425,7 @@ btnCalculate.addEventListener('click', () => {
                     data.currentInv += inv;
                     data.currentDisp += disp;
                 } else if (cDate < T) {
-                    // Lưu dữ liệu của ngày gần T nhất
+                    // LÆ°u dá»¯ liá»‡u cá»§a ngÃ y gáº§n T nháº¥t
                     if (cDate > data.prevInvDate) {
                         data.prevInvDate = cDate;
                         data.prevInv = inv;
@@ -1438,7 +1438,7 @@ btnCalculate.addEventListener('click', () => {
 
         // ----------- 4. Input ODA Aggregation -----------
         const inputMap = new Map();
-        const actualODA_Names = new Map(); // Lưu Tên ODA chuẩn nhất từ file vận hành
+        const actualODA_Names = new Map(); // LÆ°u TÃªn ODA chuáº©n nháº¥t tá»« file váº­n hÃ nh
 
         if (datasets.input && datasets.input.length > 0) {
             datasets.input.forEach(row => {
@@ -1446,8 +1446,8 @@ btnCalculate.addEventListener('click', () => {
                 let status = String(row['orderstatus'] || row['status'] || row['trangthai'] || '').toLowerCase();
                 
                 if (!prod) return;
-                // Lọc bỏ hàng Hủy / Đã hoàn (Chỉ lấy Completed)
-                if (status && (status.includes('cancel') || status.includes('hủy') || status.includes('reject'))) return;
+                // Lá»c bá» hÃ ng Há»§y / ÄÃ£ hoÃ n (Chá»‰ láº¥y Completed)
+                if (status && (status.includes('cancel') || status.includes('há»§y') || status.includes('reject'))) return;
 
                 let rawSap = extractSAP(row['sap'] || row['storecode'] || row['mach'] || row['macuahang'] || row['sapcode']);
                 let nick = row['nickname'] || row['storename'] || row['store'] || row['tencuahang'] || row['sap'] || '';
@@ -1473,10 +1473,10 @@ btnCalculate.addEventListener('click', () => {
                 }
                 let qty = Number(valStr.replace(/,/g, ''));
 
-                // Trích xuất ngày giao hàng/nhập hàng
+                // TrÃ­ch xuáº¥t ngÃ y giao hÃ ng/nháº­p hÃ ng
                 let rawDate = row['orderdate'] || row['Order date'] || row['completeddate'] || row['Completed date'] || row['date'] || row['ngaydathang'] || row['ngay'] || row['ngaytao'] || row['createddate'] || 0;
                 let cOrderDate = parseDateStrToTime(rawDate);
-                let cDeliveryDate = cOrderDate > 0 ? cOrderDate + 86400000 : 0; // Cộng thêm 1 ngày giao
+                let cDeliveryDate = cOrderDate > 0 ? cOrderDate + 86400000 : 0; // Cá»™ng thÃªm 1 ngÃ y giao
 
                 let T = storeMasterDateMap.get(storeID);
                 if (!T || cDeliveryDate > T) return;
@@ -1503,7 +1503,7 @@ btnCalculate.addEventListener('click', () => {
             });
         }
 
-        // Hàm lấy lại Tên Chuẩn nhất (Ưu tiên ODA thật > Mapping > Raw)
+        // HÃ m láº¥y láº¡i TÃªn Chuáº©n nháº¥t (Æ¯u tiÃªn ODA tháº­t > Mapping > Raw)
         const getBestAvailableName = (mappedName) => {
             if (!mappedName) return '';
             let k = String(mappedName).toLowerCase();
@@ -1511,7 +1511,7 @@ btnCalculate.addEventListener('click', () => {
         }
 
         // ----------- 5. Sales Data (Flat Transaction Aggregation) -----------
-        // Trong file thực tế: Dữ liệu doanh số bán nằm từng dòng, cột "POS Quantity"
+        // Trong file thá»±c táº¿: Dá»¯ liá»‡u doanh sá»‘ bÃ¡n náº±m tá»«ng dÃ²ng, cá»™t "POS Quantity"
         const monthlySales = new Map();
         const storeMonthlyDays = new Map(); // All days
         const storeGroupDays = new Map();  // storeID -> { weekdays: Set, weekends: Set }
@@ -1529,7 +1529,7 @@ btnCalculate.addEventListener('click', () => {
 
                 let storeID = extractSAP(st);
                 
-                // Hỗ trợ Fallback Lookup cho Monthly Sales y chang Weekly
+                // Há»— trá»£ Fallback Lookup cho Monthly Sales y chang Weekly
                 if (storeID && isNaN(parseInt(storeID))) {
                     let lookedUp = reverseStoreNamesMap.get(normalizeKey(st));
                     if (lookedUp) storeID = lookedUp;
@@ -1551,9 +1551,9 @@ btnCalculate.addEventListener('click', () => {
                     }
                 }
 
-                // Đăng ký Tên/Nickname từ file Doanh số (ODA)
+                // ÄÄƒng kÃ½ TÃªn/Nickname tá»« file Doanh sá»‘ (ODA)
                 if (storeID) {
-                    let sName = row['storename'] || row['store'] || row['têncửahàng'] || '';
+                    let sName = row['storename'] || row['store'] || row['tÃªncá»­ahÃ ng'] || '';
                     let nickname = row['nickname'] || '';
                     if (!storeAliasesMap.has(storeID)) storeAliasesMap.set(storeID, new Set());
                     if (sName) storeAliasesMap.get(storeID).add(normalizeKey(sName));
@@ -1609,7 +1609,7 @@ btnCalculate.addEventListener('click', () => {
 
         processMonthlyData(datasets.monthly);
         
-        // Build lần 2: Bổ sung thêm Alias nếu file Doanh Thu Tháng có ghi nhận tên/nickname mới
+        // Build láº§n 2: Bá»• sung thÃªm Alias náº¿u file Doanh Thu ThÃ¡ng cÃ³ ghi nháº­n tÃªn/nickname má»›i
         buildReverseMap();
 
         const weeklySales = new Map();
@@ -1620,7 +1620,7 @@ btnCalculate.addEventListener('click', () => {
         let globalWeeklyMaxTs = 0;
         if (datasets.weekly && datasets.weekly.length > 0) {
             datasets.weekly.forEach(row => {
-                // Kiểm tra xem đây là file TRANSACTION (phẳng) hay MATRIX (ngang)
+                // Kiá»ƒm tra xem Ä‘Ã¢y lÃ  file TRANSACTION (pháº³ng) hay MATRIX (ngang)
                 let st = row['sap'] || row['storecode'] || row['nickname'] || row['storename'] || row['store'] || row['mach'] || row['tencuahang'];
                 let pr = row['tnsnphmwm'] || row['tensanphamwm'] || row['tnsnphm'] || row['articlename'] || row['article'] || row['tensanpham'] || row['productname'];
                 
@@ -1629,10 +1629,10 @@ btnCalculate.addEventListener('click', () => {
                 if (!prodStd) return;
 
                 if (st) {
-                    // --- DẠNG FILE PHẲNG (TRANSACTION) ---
+                    // --- Dáº NG FILE PHáº²NG (TRANSACTION) ---
                     let storeID = extractSAP(st);
                     
-                    // Fallback cực mạnh cho ODA: Nếu ô Name/Nickname không chứa Mã SAP dạng số, ta sẽ lookup từ thư viện!
+                    // Fallback cá»±c máº¡nh cho ODA: Náº¿u Ã´ Name/Nickname khÃ´ng chá»©a MÃ£ SAP dáº¡ng sá»‘, ta sáº½ lookup tá»« thÆ° viá»‡n!
                     if (storeID && isNaN(parseInt(storeID))) {
                         let lookedUp = reverseStoreNamesMap.get(normalizeKey(st));
                         if (lookedUp) storeID = lookedUp;
@@ -1683,19 +1683,19 @@ btnCalculate.addEventListener('click', () => {
                         }
                     }
                 } else {
-                    // --- DẠNG FILE MA TRẬN (MATRIX - Tên cửa hàng ở tiêu đề cột) ---
-                    // Duyệt từng cột của dòng này
+                    // --- Dáº NG FILE MA TRáº¬N (MATRIX - TÃªn cá»­a hÃ ng á»Ÿ tiÃªu Ä‘á» cá»™t) ---
+                    // Duyá»‡t tá»«ng cá»™t cá»§a dÃ²ng nÃ y
                     Object.entries(row).forEach(([colKey, qtyVal]) => {
                         let cKey = String(colKey).trim();
                         if (!cKey) return;
 
-                        // ƯU TIÊN 1: Tìm xem trong Header có chứa Mã SAP (4-5 số) không?
+                        // Æ¯U TIÃŠN 1: TÃ¬m xem trong Header cÃ³ chá»©a MÃ£ SAP (4-5 sá»‘) khÃ´ng?
                         let sID = "";
                         let sapMatch = cKey.match(/(\d{4,5})/);
                         if (sapMatch && reverseStoreNamesMap.has(normalizeKey(sapMatch[1]))) {
                             sID = reverseStoreNamesMap.get(normalizeKey(sapMatch[1]));
                         } else {
-                            // ƯU TIÊN 2: Tìm theo Tên/Nickname đã normalize
+                            // Æ¯U TIÃŠN 2: TÃ¬m theo TÃªn/Nickname Ä‘Ã£ normalize
                             sID = reverseStoreNamesMap.get(normalizeKey(cKey));
                         }
 
@@ -1705,7 +1705,7 @@ btnCalculate.addEventListener('click', () => {
                             if (isNaN(qty) || qty === 0) return;
 
                             let key = `${sID}_${prodStd.toLowerCase()}`;
-                            // Với file Matrix không có ngày, ta mặc định chia đều tỉ lệ 5/2 (5 ngày thường, 2 ngày cuối tuần)
+                            // Vá»›i file Matrix khÃ´ng cÃ³ ngÃ y, ta máº·c Ä‘á»‹nh chia Ä‘á»u tá»‰ lá»‡ 5/2 (5 ngÃ y thÆ°á»ng, 2 ngÃ y cuá»‘i tuáº§n)
                             let wQty = qty * (5 / 7);
                             let eQty = qty * (2 / 7);
 
@@ -1718,7 +1718,7 @@ btnCalculate.addEventListener('click', () => {
                                 d.weekendQty += eQty;
                             }
                             
-                            // Giả lập số ngày (5 ngày thường, 2 cuối tuần) để denominator > 0
+                            // Giáº£ láº­p sá»‘ ngÃ y (5 ngÃ y thÆ°á»ng, 2 cuá»‘i tuáº§n) Ä‘á»ƒ denominator > 0
                             if (!storeWeeklyDays.has(sID)) storeWeeklyDays.set(sID, new Set(['dummy-w1','dummy-w2','dummy-w3','dummy-w4','dummy-w5','dummy-e1','dummy-e2']));
                             if (!storeWeeklyGroupDays.has(sID)) {
                                 const dummyDays = { weekdays: new Set(['d1','d2','d3','d4','d5']), weekends: new Set(['d6','d7']) };
@@ -1731,12 +1731,12 @@ btnCalculate.addEventListener('click', () => {
         }
 
 
-        // ----------- CẢNH BÁO MAPPING LÊN MÀN HÌNH CHÍNH -----------
+        // ----------- Cáº¢NH BÃO MAPPING LÃŠN MÃ€N HÃŒNH CHÃNH -----------
         const warningDiv = document.getElementById('mapping-warning-div');
         if (warningDiv) {
             if (unmappedProducts.size > 0 && datasets.mapping_raw && datasets.mapping_raw.length > 0) {
-                warningDiv.innerHTML = `<strong style="color: #ff9800; font-size: 1.1em;"><i class="fas fa-exclamation-triangle"></i> Cập nhập thêm sản phẩm: TÌM THẤY ${unmappedProducts.size} SẢN PHẨM MỚI TRONG DOANH SỐ TUẦN!</strong><br>
-            <span style="display:block; margin-top: 8px;">Dưới đây là các mã <b>CHƯA ĐƯỢC GHI NHẬN</b> trong Mapping và đã bị tạm ẩn khỏi bảng SOQ: <br>
+                warningDiv.innerHTML = `<strong style="color: #ff9800; font-size: 1.1em;"><i class="fas fa-exclamation-triangle"></i> Cáº­p nháº­p thÃªm sáº£n pháº©m: TÃŒM THáº¤Y ${unmappedProducts.size} Sáº¢N PHáº¨M Má»šI TRONG DOANH Sá» TUáº¦N!</strong><br>
+            <span style="display:block; margin-top: 8px;">DÆ°á»›i Ä‘Ã¢y lÃ  cÃ¡c mÃ£ <b>CHÆ¯A ÄÆ¯á»¢C GHI NHáº¬N</b> trong Mapping vÃ  Ä‘Ã£ bá»‹ táº¡m áº©n khá»i báº£ng SOQ: <br>
             <i style="color: #fff; background: rgba(255,255,255,0.1); padding: 5px 8px; border-radius: 4px; display: inline-block; margin-top: 5px;">${Array.from(unmappedProducts).slice(0, 15).join(', ')}${unmappedProducts.size > 15 ? '...' : ''}</i></span>`;
                 warningDiv.style.display = 'block';
             } else {
@@ -1751,20 +1751,20 @@ btnCalculate.addEventListener('click', () => {
         const registerKey = (key, storeID, storeOrig, rawProdStdName) => {
             if (!allItems.has(key)) {
                 let bestName = getBestAvailableName(rawProdStdName);
-                // Đã bổ sung prodStd để hàm lọc nhóm hàng có thể map chính xác
+                // ÄÃ£ bá»• sung prodStd Ä‘á»ƒ hÃ m lá»c nhÃ³m hÃ ng cÃ³ thá»ƒ map chÃ­nh xÃ¡c
                 allItems.set(key, { storeID, storeOrig, bestName, prodStd: String(rawProdStdName || '') });
             }
         };
 
-        // 2026-03-31: Đảm bảo tất cả store trong lịch phải được xuất hiện kể cả khi chưa có số bán/tồn
+        // 2026-03-31: Äáº£m báº£o táº¥t cáº£ store trong lá»‹ch pháº£i Ä‘Æ°á»£c xuáº¥t hiá»‡n ká»ƒ cáº£ khi chÆ°a cÃ³ sá»‘ bÃ¡n/tá»“n
         let syncKeysSet = new Set([...monthlySales.keys(), ...inventoryMap.keys(), ...inputMap.keys()]);
         let hasScheduleUploaded = datasets.schedule && datasets.schedule.length > 0;
 
         if (hasScheduleUploaded) {
-            // Lấy thêm các tổ hợp từ mapping hoặc các dữ liệu khác nếu store đó có trong schedule
-            // Duyệt qua mapping hoặc toàn bộ danh sách sản phẩm đã từng thấy
+            // Láº¥y thÃªm cÃ¡c tá»• há»£p tá»« mapping hoáº·c cÃ¡c dá»¯ liá»‡u khÃ¡c náº¿u store Ä‘Ã³ cÃ³ trong schedule
+            // Duyá»‡t qua mapping hoáº·c toÃ n bá»™ danh sÃ¡ch sáº£n pháº©m Ä‘Ã£ tá»«ng tháº¥y
             let anyProdStandards = new Set([...standardNamesSet]);
-            // Nếu chưa có mapping, lấy từ Sales/Inventory
+            // Náº¿u chÆ°a cÃ³ mapping, láº¥y tá»« Sales/Inventory
             if (anyProdStandards.size === 0) {
                 monthlySales.forEach(v => anyProdStandards.add(v.prodStd.toLowerCase()));
                 inventoryMap.forEach(v => anyProdStandards.add(v.prodOrig.toLowerCase()));
@@ -1784,7 +1784,7 @@ btnCalculate.addEventListener('click', () => {
             let parts = k.split('_');
             let storeID = parts[0];
 
-            // Strict Filter Lịch Giao: Nếu có tải file Lịch lên, BẮT BUỘC mã cửa hàng phải có mặt trong validSAPs (vừa check ngày vừa check có list)
+            // Strict Filter Lá»‹ch Giao: Náº¿u cÃ³ táº£i file Lá»‹ch lÃªn, Báº®T BUá»˜C mÃ£ cá»­a hÃ ng pháº£i cÃ³ máº·t trong validSAPs (vá»«a check ngÃ y vá»«a check cÃ³ list)
             if (hasScheduleUploaded && !validSAPs.has(storeID)) return;
 
             let mData = monthlySales.get(k);
@@ -1797,7 +1797,7 @@ btnCalculate.addEventListener('click', () => {
             registerKey(k, storeID, storeOrig, rawProdStdName);
         });
 
-        // Block cảnh báo mapping đã được dời lên trên để chạy sớm hơn
+        // Block cáº£nh bÃ¡o mapping Ä‘Ã£ Ä‘Æ°á»£c dá»i lÃªn trÃªn Ä‘á»ƒ cháº¡y sá»›m hÆ¡n
 
         finalResults = [];
         tbody.innerHTML = '';
@@ -1818,7 +1818,7 @@ btnCalculate.addEventListener('click', () => {
         };
 
         allItems.forEach((data, key) => {
-            // Chốt số ngày thực tế dựa trên TỔNG SỐ NGÀY GHI NHẬN CỦA TOÀN BỘ FILE (Thay vì chia theo từng cửa hàng)
+            // Chá»‘t sá»‘ ngÃ y thá»±c táº¿ dá»±a trÃªn Tá»”NG Sá» NGÃ€Y GHI NHáº¬N Cá»¦A TOÃ€N Bá»˜ FILE (Thay vÃ¬ chia theo tá»«ng cá»­a hÃ ng)
             let mDaysCount = globalMonthlyDays.size > 0 ? globalMonthlyDays.size : 30;
             let wDaysCount = globalWeeklyDays.size > 0 ? globalWeeklyDays.size : 7;
 
@@ -1836,13 +1836,13 @@ btnCalculate.addEventListener('click', () => {
             let wWeekdayAds = wWeekdayDaysCount > 0 ? wWeekdayQty / wWeekdayDaysCount : 0;
             let wWeekendAds = wWeekendDaysCount > 0 ? wWeekendQty / wWeekendDaysCount : 0;
 
-            // --- NEW: Phân tích T2-T5 vs T6-CN ---
+            // --- NEW: PhÃ¢n tÃ­ch T2-T5 vs T6-CN ---
             let weekdayQty = mDataExt ? mDataExt.weekdayQty : 0;
             let weekendQty = mDataExt ? mDataExt.weekendQty : 0;
             let weekdayDaysCount = globalMonthlyGroupDays.weekdays.size > 0 ? globalMonthlyGroupDays.weekdays.size : (mDaysCount * 5/7);
             let weekendDaysCount = globalMonthlyGroupDays.weekends.size > 0 ? globalMonthlyGroupDays.weekends.size : (mDaysCount * 2/7);
 
-            // Ghi đè bằng tuổi thọ cá nhân nếu là hàng mới (Dò theo từng cửa hàng - từng sản phẩm)
+            // Ghi Ä‘Ã¨ báº±ng tuá»•i thá» cÃ¡ nhÃ¢n náº¿u lÃ  hÃ ng má»›i (DÃ² theo tá»«ng cá»­a hÃ ng - tá»«ng sáº£n pháº©m)
             if (mDataExt && mDataExt.minDateTs > 0) {
                 let lifeSpan = countPeriodDays(mDataExt.minDateTs, globalMonthlyDays);
                 if (lifeSpan) {
@@ -1877,38 +1877,38 @@ btnCalculate.addEventListener('click', () => {
                 trendFactor = 1 + (trend / 100);
                 trendExport = `${trend > 0 ? '+' : ''}${trend.toFixed(1)}%`;
                 if (trend > 0) {
-                    trendHtml = `<span style="color: var(--success)">▲ ${trend.toFixed(1)}%</span>`;
+                    trendHtml = `<span style="color: var(--success)">â–² ${trend.toFixed(1)}%</span>`;
                 } else if (trend < 0) {
-                    trendHtml = `<span style="color: var(--danger)">▼ ${Math.abs(trend).toFixed(1)}%</span>`;
+                    trendHtml = `<span style="color: var(--danger)">â–¼ ${Math.abs(trend).toFixed(1)}%</span>`;
                 } else {
                     trendHtml = `<span>0%</span>`;
                 }
             } else if (wAds > 0) {
                 trendExport = '100% (New)';
-                trendHtml = `<span style="color: var(--success)">▲ Mới bán</span>`;
-                trendFactor = 1; // Mặc định 1 cho hàng mới
+                trendHtml = `<span style="color: var(--success)">â–² Má»›i bÃ¡n</span>`;
+                trendFactor = 1; // Máº·c Ä‘á»‹nh 1 cho hÃ ng má»›i
             }
 
-            // Nếu Weekly ko có thì dùng Monthly làm gốc để dự báo, xu hướng = N/A
+            // Náº¿u Weekly ko cÃ³ thÃ¬ dÃ¹ng Monthly lÃ m gá»‘c Ä‘á»ƒ dá»± bÃ¡o, xu hÆ°á»›ng = N/A
             if (wTotal === 0 && mTotal > 0) {
                 wAds = mAds;
-                trendHtml = `<span style="color: var(--text-muted)">N/A (Tuần 0)</span>`;
+                trendHtml = `<span style="color: var(--text-muted)">N/A (Tuáº§n 0)</span>`;
                 trendExport = 'N/A';
                 trendFactor = 1;
             }
 
-            // SỐ TRUNG BÌNH BÁN NGÀY HOÀN TOÀN DỰA VÀO THÁNG
+            // Sá» TRUNG BÃŒNH BÃN NGÃ€Y HOÃ€N TOÃ€N Dá»°A VÃ€O THÃNG
             let forecastDay = mAds;
             
             if (mTotal === 0 && wTotal > 0) {
-                // Hàng siêu mới chỉ có trong tuần
+                // HÃ ng siÃªu má»›i chá»‰ cÃ³ trong tuáº§n
                 forecastDay = wAds;
                 weekdayAds = wWeekdayAds;
                 weekendAds = wWeekendAds;
             }
 
-            // --- TÍNH TOÁN LEAD TIME TỔNG CỘNG ---
-            // 1. Lead Time Arrival: Từ ngày T (Master Date) đến ngày Giao hàng (Target Delivery)
+            // --- TÃNH TOÃN LEAD TIME Tá»”NG Cá»˜NG ---
+            // 1. Lead Time Arrival: Tá»« ngÃ y T (Master Date) Ä‘áº¿n ngÃ y Giao hÃ ng (Target Delivery)
             let T = storeMasterDateMap.get(data.storeID) || 0;
             let invData = inventoryMap.get(key) || { currentInv: 0, currentDisp: 0, prevInv: 0, prevInvDate: 0 };
             let inputData = inputMap.get(key) || { currentInput: 0, prevInput: 0, prevInputDate: 0 };
@@ -1919,23 +1919,23 @@ btnCalculate.addEventListener('click', () => {
                 leadTimeArrival = Math.max(0, (targetTimestamp - invDate) / (1000 * 60 * 60 * 24));
             }
 
-            // 2. Coverage Leadtime: Khoảng cách giữa các đợt giao (lấy từ matrix lịch)
+            // 2. Coverage Leadtime: Khoáº£ng cÃ¡ch giá»¯a cÃ¡c Ä‘á»£t giao (láº¥y tá»« matrix lá»‹ch)
             let coverageLT = scheduleLeadtimeMap.has(data.storeID) ? scheduleLeadtimeMap.get(data.storeID) : extractLeadtimeFromFilename(scheduleFileName);
 
             let totalLeadtime = leadTimeArrival + coverageLT;
             
             let basePeriodDemand = calculatePeriodDemand(invDate, totalLeadtime, weekdayAds, weekendAds);
             
-            // Tách Demand dự kiến lúc chờ hàng (tránh âm kho dồn vào SOQ gây overstock)
+            // TÃ¡ch Demand dá»± kiáº¿n lÃºc chá» hÃ ng (trÃ¡nh Ã¢m kho dá»“n vÃ o SOQ gÃ¢y overstock)
             let leadTimeDemandBase = calculatePeriodDemand(invDate, leadTimeArrival, weekdayAds, weekendAds);
             let demandLeadTime = leadTimeDemandBase;
 
-            // Demand kỳ bán SOQ (Chỉ tính Coverage)
+            // Demand ká»³ bÃ¡n SOQ (Chá»‰ tÃ­nh Coverage)
             let coverageStartDate = invDate + (leadTimeArrival * 24 * 60 * 60 * 1000);
             let coverageDemandBase = calculatePeriodDemand(coverageStartDate, coverageLT, weekdayAds, weekendAds);
             let totalDemand = coverageDemandBase;
 
-            // --- NEW: Tăng trưởng theo Leadtime (Đối chiếu Weekly vs Monthly trên từng Thứ) ---
+            // --- NEW: TÄƒng trÆ°á»Ÿng theo Leadtime (Äá»‘i chiáº¿u Weekly vs Monthly trÃªn tá»«ng Thá»©) ---
             let leadtimeGrowth = 0;
             let growthHtml = '-';
 
@@ -1952,14 +1952,14 @@ btnCalculate.addEventListener('click', () => {
                 growthHtml = `<span style="color: var(--success)">New</span>`;
             }
 
-            // Phân loại Tier để nhồi thêm Tồn Kho Tối Thiểu (Safety Stock)
+            // PhÃ¢n loáº¡i Tier Ä‘á»ƒ nhá»“i thÃªm Tá»“n Kho Tá»‘i Thiá»ƒu (Safety Stock)
             let tierLevel = 0;
             if (storeTierMap.has(data.storeID)) {
                 let t = storeTierMap.get(data.storeID);
                 if (t.includes('1') || t === 'T1' || t === 'TIER1' || t === 'TIER 1') {
                     tierLevel = 1;
                 } else if (t.includes('2') || t === 'T2' || t === 'TIER 2' || t.includes('3') || t === 'T3' || t === 'TIER 3') {
-                    tierLevel = 2; // Gộp Tier 2 và 3 xài chung rate
+                    tierLevel = 2; // Gá»™p Tier 2 vÃ  3 xÃ i chung rate
                 }
             }
 
@@ -1973,7 +1973,7 @@ btnCalculate.addEventListener('click', () => {
                 totalDemand += safetyStock;
             }
 
-            // Sử dụng mốc T để chuẩn hóa Tồn / Nhập đồng bộ (Khởi tạo ở đầu vòng lặp)
+            // Sá»­ dá»¥ng má»‘c T Ä‘á»ƒ chuáº©n hÃ³a Tá»“n / Nháº­p Ä‘á»“ng bá»™ (Khá»Ÿi táº¡o á»Ÿ Ä‘áº§u vÃ²ng láº·p)
             let penaltyApplied = 0;
             let finalInv = invData.currentInv || 0;
             let finalDisp = invData.currentDisp || 0;
@@ -1994,34 +1994,34 @@ btnCalculate.addEventListener('click', () => {
             let strPrevInv = formatDateStr(invData.prevInvDate);
             let strPrevInput = formatDateStr(inputData.prevInputDate);
 
-            let invTooltip = `Tồn kho lúc T (${strT}): [ ${finalInv.toFixed(2)} ]\n- Trừ nhu cầu bán chờ hàng (${leadTimeArrival.toFixed(1)} ngày): -${demandLeadTime.toFixed(2)}\n=> Tồn dự kiến khi SOQ đến: ${expectedInvAtArrival.toFixed(2)}`;
-            let inputTooltip = `Nhập/Giao hàng lúc T (${strT}): [ ${finalInput.toFixed(2)} ]`;
-            let disposalTooltip = `KHÔNG PHẠT HỦY (Ratio quá thấp hoặc không đủ gốc chia)`;
+            let invTooltip = `Tá»“n kho lÃºc T (${strT}): [ ${finalInv.toFixed(2)} ]\n- Trá»« nhu cáº§u bÃ¡n chá» hÃ ng (${leadTimeArrival.toFixed(1)} ngÃ y): -${demandLeadTime.toFixed(2)}\n=> Tá»“n dá»± kiáº¿n khi SOQ Ä‘áº¿n: ${expectedInvAtArrival.toFixed(2)}`;
+            let inputTooltip = `Nháº­p/Giao hÃ ng lÃºc T (${strT}): [ ${finalInput.toFixed(2)} ]`;
+            let disposalTooltip = `KHÃ”NG PHáº T Há»¦Y (Ratio quÃ¡ tháº¥p hoáº·c khÃ´ng Ä‘á»§ gá»‘c chia)`;
 
             let baseForDisposal = prevInv + prevInput;
             let disposalRatio = 0;
 
             if (baseForDisposal > 0) {
-                disposalRatio = finalDisp / baseForDisposal; // Hủy(T) / (Tồn(<T) + Nhập(<T))
+                disposalRatio = finalDisp / baseForDisposal; // Há»§y(T) / (Tá»“n(<T) + Nháº­p(<T))
             } else {
-                disposalRatio = 0; // BỎ QUA GIẢM TRỪ NẾU KHÔNG TÌM THẤY LỊCH SỬ DỮ LIỆU
+                disposalRatio = 0; // Bá»Ž QUA GIáº¢M TRá»ª Náº¾U KHÃ”NG TÃŒM THáº¤Y Lá»ŠCH Sá»¬ Dá»® LIá»†U
             }
 
             if (finalDisp > 0) {
-                disposalTooltip = `Công thức: Hủy(T) / (Tồn(<T) + Nhập(<T))\n`;
+                disposalTooltip = `CÃ´ng thá»©c: Há»§y(T) / (Tá»“n(<T) + Nháº­p(<T))\n`;
                 disposalTooltip += `= ${finalDisp.toFixed(2)} / (${prevInv.toFixed(2)} + ${prevInput.toFixed(2)})\n`;
                 if (baseForDisposal > 0) {
                     disposalTooltip += `= ${(disposalRatio * 100).toFixed(1)}%\n`;
                 } else {
-                    disposalTooltip += `=> Bỏ qua phạt giảm trừ do thiếu dữ liệu quá khứ\n`;
+                    disposalTooltip += `=> Bá» qua pháº¡t giáº£m trá»« do thiáº¿u dá»¯ liá»‡u quÃ¡ khá»©\n`;
                 }
-                disposalTooltip += `(Ghi chú: Lấy Tồn cũ: ${strPrevInv}, Nhập cũ: ${strPrevInput})`;
+                disposalTooltip += `(Ghi chÃº: Láº¥y Tá»“n cÅ©: ${strPrevInv}, Nháº­p cÅ©: ${strPrevInput})`;
             }
 
             if (finalDisp > 0) {
                 let category = productCategoryMap.get(data.prodStd.toLowerCase()) || '';
-                let isRTE_or_Leaf = category.includes('RTE') || category.includes('RAU LÁ');
-                let isRoot = category.includes('CỦ');
+                let isRTE_or_Leaf = category.includes('RTE') || category.includes('RAU LÃ');
+                let isRoot = category.includes('Cá»¦');
 
                 if (!category && RTE_PRODUCTS.some(p => data.bestName.toLowerCase().includes(p.toLowerCase()))) {
                     isRTE_or_Leaf = true;
@@ -2030,9 +2030,9 @@ btnCalculate.addEventListener('click', () => {
                 let threshold = isRTE_or_Leaf ? 0.30 : (isRoot ? 0.15 : 0.15);
 
                 if (disposalRatio > threshold) {
-                    penaltyApplied = finalDisp * 0.5; // Giảm trừ 50%
+                    penaltyApplied = finalDisp * 0.5; // Giáº£m trá»« 50%
                     totalDemand -= penaltyApplied;
-                    disposalTooltip += `\n\n--> KÍCH HOẠT PHẠT DO QUÁ NGƯỠNG (${(threshold * 100).toFixed(0)}%)`;
+                    disposalTooltip += `\n\n--> KÃCH HOáº T PHáº T DO QUÃ NGÆ¯á» NG (${(threshold * 100).toFixed(0)}%)`;
                 }
             }
 
@@ -2045,17 +2045,17 @@ btnCalculate.addEventListener('click', () => {
             let xuHuongHtml = '<span>-</span>';
             if (trendAction) {
                 let lowerAction = trendAction.toLowerCase();
-                if (lowerAction.includes('tốt') || lowerAction.includes('tot')) {
+                if (lowerAction.includes('tá»‘t') || lowerAction.includes('tot')) {
                     xuHuongHtml = `<span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.85em;">${trendAction}</span>`;
-                } else if (lowerAction.includes('ngừng') || lowerAction.includes('ngưng') || lowerAction.includes('ngung')) {
+                } else if (lowerAction.includes('ngá»«ng') || lowerAction.includes('ngÆ°ng') || lowerAction.includes('ngung')) {
                     xuHuongHtml = `<span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.85em;">${trendAction}</span>`;
                 } else {
                     xuHuongHtml = `<span style="background: rgba(255, 255, 255, 0.05); color: var(--text-main); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 0.85em;">${trendAction}</span>`;
                 }
             }
 
-            // HIỂN THỊ ĐẦY ĐỦ SOQ NẾU CÓ BẤT KỲ Ý NGHĨA KINH DOANH NÀO
-            // Ẩn dòng có TẤT CẢ = 0 (Đã comment lại theo yêu cầu để show đủ 46 mã)
+            // HIá»‚N THá»Š Äáº¦Y Äá»¦ SOQ Náº¾U CÃ“ Báº¤T Ká»² Ã NGHÄ¨A KINH DOANH NÃ€O
+            // áº¨n dÃ²ng cÃ³ Táº¤T Cáº¢ = 0 (ÄÃ£ comment láº¡i theo yÃªu cáº§u Ä‘á»ƒ show Ä‘á»§ 46 mÃ£)
             // if (soq === 0 && totalDemand === 0 && finalInv === 0 && finalInput === 0 && finalDisp === 0) {
             //     return;
             // }
@@ -2063,12 +2063,12 @@ btnCalculate.addEventListener('click', () => {
             let storeNameStr = storeNamesMap.get(data.storeID) || data.storeOrig;
 
             let totalDemandRaw = totalDemand + penaltyApplied;
-            let breakdownTip = `Công thức: Demand (Nhu cầu gốc) + SafetyStock. \n- Nhu cầu gốc (Coverage): ${coverageDemandBase.toFixed(2)}\n- SafetyStock: +${safetyStock.toFixed(2)} \n- Penalty (Giảm trừ): -${penaltyApplied.toFixed(2)}`;
+            let breakdownTip = `CÃ´ng thá»©c: Demand (Nhu cáº§u gá»‘c) + SafetyStock. \n- Nhu cáº§u gá»‘c (Coverage): ${coverageDemandBase.toFixed(2)}\n- SafetyStock: +${safetyStock.toFixed(2)} \n- Penalty (Giáº£m trá»«): -${penaltyApplied.toFixed(2)}`;
 
             finalResults.push({
                 'sap': data.storeID,
                 'store': storeNameStr,
-                'region': storeRegionMap.get(data.storeID) || 'Khác',
+                'region': storeRegionMap.get(data.storeID) || 'KhÃ¡c',
                 'product': data.bestName,
                 'ads': forecastDay.toFixed(2),
                 'trend': trendExport,
@@ -2088,13 +2088,13 @@ btnCalculate.addEventListener('click', () => {
                 'xu_huong_html': xuHuongHtml,
                 // Tooltips
                 'tip_ads': (mTotal === 0 && wTotal > 0) 
-                           ? `[MÃ MỚI TỪ FILE TUẦN] Sản lượng: ${wTotal.toFixed(1)} / ${Math.round(wDaysCount)} ngày (Vòng đời)\n=> Trung bình: ${forecastDay.toFixed(2)} SP/ngày` 
-                           : `Sản lượng gốc: ${mTotal.toFixed(1)} / ${Math.round(mDaysCount)} ngày (Vòng đời)\n=> Trung bình: ${forecastDay.toFixed(2)} SP/ngày`,
-                'tip_trend': `Bán tuần vừa qua: ${wAds.toFixed(2)}/ngày\nBán trung bình tháng: ${mAds.toFixed(2)}/ngày\n(Tỷ lệ chênh lệch: ${trendExport})`,
-                'tip_growth': `Dự báo rải thực tế ngày giao (Khớp T2-CN): ${forecastDay.toFixed(2)}/ngày\n(Tỷ lệ tăng trưởng so với Trung bình Tháng gốc: ${mAds > 0 ? leadtimeGrowth.toFixed(1) : 0}%)`,
-                'tip_weekday': `Tính từ gốc Tháng (Lifecycle): ${weekdayQty.toFixed(2)} / ${Math.round(weekdayDaysCount)} ngày T2-T6`,
-                'tip_weekend': `Tính từ gốc Tháng (Lifecycle): ${weekendQty.toFixed(2)} / ${Math.round(weekendDaysCount)} ngày T7-CN`,
-                'tip_leadtime': `Coverage: ${coverageLT} ngày. (Chỉ tính lượng bán ra trong ${coverageLT} ngày giao hàng, không tính phần thiếu hụt trong ${leadTimeArrival.toFixed(1)} ngày chờ)`,
+                           ? `[MÃƒ Má»šI Tá»ª FILE TUáº¦N] Sáº£n lÆ°á»£ng: ${wTotal.toFixed(1)} / ${Math.round(wDaysCount)} ngÃ y (VÃ²ng Ä‘á»i)\n=> Trung bÃ¬nh: ${forecastDay.toFixed(2)} SP/ngÃ y` 
+                           : `Sáº£n lÆ°á»£ng gá»‘c: ${mTotal.toFixed(1)} / ${Math.round(mDaysCount)} ngÃ y (VÃ²ng Ä‘á»i)\n=> Trung bÃ¬nh: ${forecastDay.toFixed(2)} SP/ngÃ y`,
+                'tip_trend': `BÃ¡n tuáº§n vá»«a qua: ${wAds.toFixed(2)}/ngÃ y\nBÃ¡n trung bÃ¬nh thÃ¡ng: ${mAds.toFixed(2)}/ngÃ y\n(Tá»· lá»‡ chÃªnh lá»‡ch: ${trendExport})`,
+                'tip_growth': `Dá»± bÃ¡o ráº£i thá»±c táº¿ ngÃ y giao (Khá»›p T2-CN): ${forecastDay.toFixed(2)}/ngÃ y\n(Tá»· lá»‡ tÄƒng trÆ°á»Ÿng so vá»›i Trung bÃ¬nh ThÃ¡ng gá»‘c: ${mAds > 0 ? leadtimeGrowth.toFixed(1) : 0}%)`,
+                'tip_weekday': `TÃ­nh tá»« gá»‘c ThÃ¡ng (Lifecycle): ${weekdayQty.toFixed(2)} / ${Math.round(weekdayDaysCount)} ngÃ y T2-T6`,
+                'tip_weekend': `TÃ­nh tá»« gá»‘c ThÃ¡ng (Lifecycle): ${weekendQty.toFixed(2)} / ${Math.round(weekendDaysCount)} ngÃ y T7-CN`,
+                'tip_leadtime': `Coverage: ${coverageLT} ngÃ y. (Chá»‰ tÃ­nh lÆ°á»£ng bÃ¡n ra trong ${coverageLT} ngÃ y giao hÃ ng, khÃ´ng tÃ­nh pháº§n thiáº¿u há»¥t trong ${leadTimeArrival.toFixed(1)} ngÃ y chá»)`,
                 'tip_demand': breakdownTip,
                 'tip_inventory': invTooltip,
                 'tip_input': inputTooltip,
@@ -2102,7 +2102,7 @@ btnCalculate.addEventListener('click', () => {
             });
         });
 
-        // Sắp xếp mặc định: Theo Mã SAP, sau đó theo Tên sản phẩm tùy chỉnh
+        // Sáº¯p xáº¿p máº·c Ä‘á»‹nh: Theo MÃ£ SAP, sau Ä‘Ã³ theo TÃªn sáº£n pháº©m tÃ¹y chá»‰nh
         finalResults.sort((a, b) => {
             let sapCompare = String(a.sap).localeCompare(String(b.sap), undefined, { numeric: true });
             if (sapCompare !== 0) return sapCompare;
@@ -2127,17 +2127,17 @@ btnCalculate.addEventListener('click', () => {
             let schedKeys = (datasets.schedule && datasets.schedule.length > 0) ? Object.keys(datasets.schedule[0]).join(', ') : 'No data';
 
             tbody.innerHTML = `<tr><td colspan="15" style="text-align:left; color: var(--danger); padding: 2rem;">
-            <strong>Không tìm thấy bất kỳ dữ liệu hợp lệ nào. (Tồn kho, hàng nhập và lịch giao không khớp ngàm dữ liệu, hoặc tất cả đều bằng 0).</strong><br/><br/>
+            <strong>KhÃ´ng tÃ¬m tháº¥y báº¥t ká»³ dá»¯ liá»‡u há»£p lá»‡ nÃ o. (Tá»“n kho, hÃ ng nháº­p vÃ  lá»‹ch giao khÃ´ng khá»›p ngÃ m dá»¯ liá»‡u, hoáº·c táº¥t cáº£ Ä‘á»u báº±ng 0).</strong><br/><br/>
             <div style="font-family: monospace; font-size:12px; color: var(--text-muted);">
-                <strong>--- TRÌNH KIỂM TRA LỖI NỘI BỘ ---</strong><br/>
+                <strong>--- TRÃŒNH KIá»‚M TRA Lá»–I Ná»˜I Bá»˜ ---</strong><br/>
                 - Schedule Headers: ${schedKeys}<br/>
                 - Monthly Headers: ${monthlyKeys}<br/>
                 - Inventory Headers: ${invKeys}<br/>
-                - Lịch Giao Hàng quét được: ${validSAPs.size} mã hợp lệ<br/>
-                - Mapping File quét được: ${mappingMap ? mappingMap.size : 0} cặp quy đổi.<br/>
-                - Master List đăng ký được: ${allItems.size} mã sản phẩm.
+                - Lá»‹ch Giao HÃ ng quÃ©t Ä‘Æ°á»£c: ${validSAPs.size} mÃ£ há»£p lá»‡<br/>
+                - Mapping File quÃ©t Ä‘Æ°á»£c: ${mappingMap ? mappingMap.size : 0} cáº·p quy Ä‘á»•i.<br/>
+                - Master List Ä‘Äƒng kÃ½ Ä‘Æ°á»£c: ${allItems.size} mÃ£ sáº£n pháº©m.
             </div>
-            <p>Vui lòng chụp màn hình đoạn mã màu xám này và gửi lại để kỹ sư hoàn tất căn chỉnh file.</p>
+            <p>Vui lÃ²ng chá»¥p mÃ n hÃ¬nh Ä‘oáº¡n mÃ£ mÃ u xÃ¡m nÃ y vÃ  gá»­i láº¡i Ä‘á»ƒ ká»¹ sÆ° hoÃ n táº¥t cÄƒn chá»‰nh file.</p>
         </td></tr>`;
         }
 
@@ -2145,16 +2145,16 @@ btnCalculate.addEventListener('click', () => {
         if (finalResults.length > 0) {
             btnExport.style.display = 'inline-block';
             
-             // --- LƯU LỊCH SỬ TÍNH TOÁN NGAY LẬP TỨC ĐỂ XEM LẠI Ở TAB "LỊCH SỬ TẢI LÊN" (EXPIRES QUA ĐÊM) ---
+             // --- LÆ¯U Lá»ŠCH Sá»¬ TÃNH TOÃN NGAY Láº¬P Tá»¨C Äá»‚ XEM Láº I á»ž TAB "Lá»ŠCH Sá»¬ Táº¢I LÃŠN" (EXPIRES QUA ÄÃŠM) ---
              saveToDB('soq_latest_filename', scheduleFileName);
              saveToDB('soq_latest_html', tbody.innerHTML);
              saveToDB('soq_latest_array', finalResults);
              archiveTodayData();
 
-             // --- LƯU LÊN FIREBASE (CLOUD STORAGE) ---
+             // --- LÆ¯U LÃŠN FIREBASE (CLOUD STORAGE) ---
              if (typeof firebase !== 'undefined') {
-                 let userName = inputUserName ? inputUserName.value.trim() : "Hệ thống";
-                 if (!userName) userName = "Ẩn danh";
+                 let userName = inputUserName ? inputUserName.value.trim() : "Há»‡ thá»‘ng";
+                 if (!userName) userName = "áº¨n danh";
 
                  const now = new Date();
                  const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
@@ -2169,28 +2169,28 @@ btnCalculate.addEventListener('click', () => {
                  };
 
                  firebase.database().ref('latest_soq').set(payload)
-                     .then(() => console.log("Đã cập nhật SOQ mới nhất lên Cloud."))
-                     .catch(err => console.error("Lỗi lưu Cloud:", err));
+                     .then(() => console.log("ÄÃ£ cáº­p nháº­t SOQ má»›i nháº¥t lÃªn Cloud."))
+                     .catch(err => console.error("Lá»—i lÆ°u Cloud:", err));
              }
         }
     } catch (err) {
-        console.error("Lỗi tính toán SOQ:", err);
-        alert("Lỗi tính toán: " + err.message + "\n\nBạn hãy kiểm tra xem các file đã được tải lên đầy đủ chưa nhé!");
+        console.error("Lá»—i tÃ­nh toÃ¡n SOQ:", err);
+        alert("Lá»—i tÃ­nh toÃ¡n: " + err.message + "\n\nBáº¡n hÃ£y kiá»ƒm tra xem cÃ¡c file Ä‘Ã£ Ä‘Æ°á»£c táº£i lÃªn Ä‘áº§y Ä‘á»§ chÆ°a nhÃ©!");
         btnCalculate.disabled = false;
-        btnCalculate.textContent = "Tiến hành tính SOQ";
+        btnCalculate.textContent = "Tiáº¿n hÃ nh tÃ­nh SOQ";
     }
 });
 
-// Hàm hỗ trợ lưu thay đổi lên Cloud (Firebase Transaction)
+// HÃ m há»— trá»£ lÆ°u thay Ä‘á»•i lÃªn Cloud (Firebase Transaction)
 function saveChangesToCloud() {
     return new Promise((resolve, reject) => {
         if (typeof firebase === 'undefined') {
-            reject(new Error("Firebase chưa được khởi tạo."));
+            reject(new Error("Firebase chÆ°a Ä‘Æ°á»£c khá»Ÿi táº¡o."));
             return;
         }
 
-        let userName = inputUserName ? inputUserName.value.trim() : "Hệ thống";
-        if (!userName) userName = "Ẩn danh";
+        let userName = inputUserName ? inputUserName.value.trim() : "Há»‡ thá»‘ng";
+        if (!userName) userName = "áº¨n danh";
         const now = new Date();
         const dateStr = now.toISOString().split('T')[0];
 
@@ -2205,7 +2205,7 @@ function saveChangesToCloud() {
 
         firebase.database().ref('latest_soq').transaction((currentData) => {
             try {
-                // Kiểm tra cùng ngày (dateStr) để gộp thay đổi của mọi người dùng
+                // Kiá»ƒm tra cÃ¹ng ngÃ y (dateStr) Ä‘á»ƒ gá»™p thay Ä‘á»•i cá»§a má»i ngÆ°á»i dÃ¹ng
                 if (currentData && currentData.dateStr === dateStr) {
                     let cloudMap = {};
                     if (currentData.results) {
@@ -2239,12 +2239,46 @@ function saveChangesToCloud() {
                         }
                     });
 
+                    if (!modified) {
+                        currentData.lastActive = now.getTime();
+                    }
+
+                    // Äá»“ng bá»™ metadata má»›i nháº¥t
+                    currentData.filename = scheduleFileName;
+                    currentData.timestamp = now.getTime();
+                    currentData.userName = user        if (typeof firebase !== 'undefined') {
+            btnSaveChanges.innerHTML = "â³ Äang lÆ°u...";
+            saveChangesToCloud().then((committed) => {
+                if (committed) {
+                    btnSaveChanges.innerHTML = "âœ”ï¸ ÄÃ£ lÆ°u";
+                } else {
+                    btnSaveChanges.innerHTML = "âœ”ï¸ ÄÃ£ lÆ°u (KhÃ´ng Ä‘á»•i)";
+                }
+                setTimeout(() => { btnSaveChanges.innerHTML = "ðŸ’¾ LÆ°u Thay Äá»•i"; }, 2000);
+            }).catch(err => {
+                alert("Lá»—i khi lÆ°u lÃªn Cloud: " + err.message);
+                btnSaveChanges.innerHTML = "ðŸ’¾ LÆ°u Thay Äá»•i";
+            });
+        } else {
+            alert("Lá»—i: Firebase chÆ°a Ä‘Æ°á»£c khá»Ÿi táº¡o.");
+        }
+    });
+}¶T" nhÆ°ng chÆ°a nháº­p Ä‘á»§ toÃ n bá»™ cÃ¡c mÃ£ sáº£n pháº©m:\n- ${missingStores.join('\n- ')}\n\nBáº¡n cÃ³ cháº¯c cháº¯n muá»‘n lÆ°u láº¡i khÃ´ng?`);
+            if (!confirmSave) return;
+        }
+
+        if (typeof firebase !== 'undefined') {
+            btnSaveChanges.innerHTML = "â³ Äang lÆ°u...";
+
                         if (!modified) {
+                            // Cá»‘ tÃ¬nh sá»­a 1 trÆ°á»ng nhá» Ä‘á»ƒ Firebase báº¯t buá»™c nháº­n diá»‡n cÃ³ thay Ä‘á»•i (force commit)
                             currentData.lastActive = now.getTime();
                         }
+
                         currentData.timestamp = now.getTime();
                         currentData.userName = userName; 
                         
+                        // Sanitize before returning to prevent Firebase SDK crash due to undefined properties
                         return JSON.parse(JSON.stringify(currentData));
                     }
                     
@@ -2254,8 +2288,8 @@ function saveChangesToCloud() {
                     }
                     return newPayload;
                 } catch (e) {
-                    console.error("L?i b�n trong transaction: ", e);
-                    return; 
+                    console.error("Lá»—i bÃªn trong transaction: ", e);
+                    return; // Há»§y transaction
                 }
             }).then((result) => {
                 if (result.committed) {
@@ -2271,50 +2305,39 @@ function saveChangesToCloud() {
                     if (Array.isArray(finalResults)) {
                         finalResults.forEach(r => { if(r) delete r.is_dirty; });
                     }
+                    
+                    btnSaveChanges.innerHTML = "âœ”ï¸ ÄÃ£ lÆ°u";
+                    setTimeout(() => { btnSaveChanges.innerHTML = "ðŸ’¾ LÆ°u Thay Äá»•i"; }, 2000);
                     saveToDB('soq_latest_array', finalResults);
-                    archiveTodayData();
+              archiveTodayData();
+                    
                     renderSOQTable(finalResults);
                     populateRegionDropdown();
                 } else {
                     if (Array.isArray(finalResults)) {
                         finalResults.forEach(r => { if(r) delete r.is_dirty; });
                     }
+                    btnSaveChanges.innerHTML = "âœ”ï¸ ÄÃ£ lÆ°u (KhÃ´ng Ä‘á»•i)";
+                    setTimeout(() => { btnSaveChanges.innerHTML = "ðŸ’¾ LÆ°u Thay Äá»•i"; }, 2000);
                 }
-                resolve(result.committed);
             }).catch(err => {
-                reject(err);
-            });
-    });
-}
-
-const btnSaveChangesLocal = document.getElementById('btn-save-changes');
-if (btnSaveChangesLocal) {
-    btnSaveChangesLocal.addEventListener('click', () => {
-        if (typeof firebase !== 'undefined') {
-            btnSaveChangesLocal.innerHTML = "? �ang luu...";
-            saveChangesToCloud().then((committed) => {
-                if (committed) {
-                    btnSaveChangesLocal.innerHTML = "?? �� luu";
-                } else {
-                    btnSaveChangesLocal.innerHTML = "?? �� luu (Kh�ng d?i)";
-                }
-                setTimeout(() => { btnSaveChangesLocal.innerHTML = "?? Luu Thay �?i"; }, 2000);
-            }).catch(err => {
-                alert("L?i khi luu l�n Cloud: " + err.message);
-                btnSaveChangesLocal.innerHTML = "?? Luu Thay �?i";
+                console.error("Lá»—i lÆ°u Cloud:", err);
+                alert("Lá»—i khi lÆ°u lÃªn Cloud: " + err.message);
+                btnSaveChanges.innerHTML = "ðŸ’¾ LÆ°u Thay Äá»•i";
             });
         } else {
-            alert("L?i: Firebase chua du?c kh?i t?o.");
+            alert("Lá»—i: Firebase chÆ°a Ä‘Æ°á»£c khá»Ÿi táº¡o.");
         }
     });
 }
+
 // Export to Excel (Bypass Security Block for local file:///)
 btnExport.addEventListener('click', () => {
     if (!isArchiveView) {
         archiveTodayData();
     }
     if (!datasets.template_headers || datasets.template_headers.length === 0) {
-        alert("Vui lòng tải lên 'Form Xuất Mẫu' ở mục 6 (Cấu hình) trước khi xuất Excel để đảm bảo đúng định dạng!");
+        alert("Vui lÃ²ng táº£i lÃªn 'Form Xuáº¥t Máº«u' á»Ÿ má»¥c 6 (Cáº¥u hÃ¬nh) trÆ°á»›c khi xuáº¥t Excel Ä‘á»ƒ Ä‘áº£m báº£o Ä‘Ãºng Ä‘á»‹nh dáº¡ng!");
         return;
     }
 
@@ -2332,7 +2355,7 @@ btnExport.addEventListener('click', () => {
     finalResults.forEach(item => {
         if (!stores.has(item.sap)) {
             stores.set(item.sap, {
-                region: item.region || 'Khác',
+                region: item.region || 'KhÃ¡c',
                 buyerName: item.store || '',
                 sap: item.sap || '',
                 notes: new Set(),
@@ -2355,21 +2378,21 @@ btnExport.addEventListener('click', () => {
     storeArray.sort((a, b) => a.region.localeCompare(b.region, 'vi'));
     
     let aoa = [];
-    // Dòng 1: Tiêu đề cột giữ nguyên y hệt Form xuất mẫu
+    // DÃ²ng 1: TiÃªu Ä‘á» cá»™t giá»¯ nguyÃªn y há»‡t Form xuáº¥t máº«u
     aoa.push(datasets.template_headers);
     
-    // Các dòng dữ liệu
+    // CÃ¡c dÃ²ng dá»¯ liá»‡u
     storeArray.forEach(s => {
         let rowData = [];
         datasets.template_headers.forEach(header => {
             let hUpper = header.trim().toUpperCase();
-            if (hUpper === 'KHU VỰC' || hUpper === 'KHU VUC' || hUpper === 'REGION') {
+            if (hUpper === 'KHU Vá»°C' || hUpper === 'KHU VUC' || hUpper === 'REGION') {
                 rowData.push(s.region);
             } else if (hUpper === 'BUYER NAME' || hUpper.includes('BUYER')) {
                 rowData.push(s.buyerName);
-            } else if (hUpper === 'ORDER NOTE' || hUpper === 'GHI CHÚ' || hUpper.includes('NOTE')) {
+            } else if (hUpper === 'ORDER NOTE' || hUpper === 'GHI CHÃš' || hUpper.includes('NOTE')) {
                 rowData.push(Array.from(s.notes).join(', '));
-            } else if (hUpper === 'SAP' || hUpper === 'MÃ SAP') {
+            } else if (hUpper === 'SAP' || hUpper === 'MÃƒ SAP') {
                 rowData.push(s.sap);
             } else {
                 let hKey = header.trim().toLowerCase();
@@ -2383,13 +2406,13 @@ btnExport.addEventListener('click', () => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "SOQ_Results");
 
-    // --- Tạo Sheet thứ 2: Raw Data (Kết Quả Dự Báo) ---
+    // --- Táº¡o Sheet thá»© 2: Raw Data (Káº¿t Quáº£ Dá»± BÃ¡o) ---
     let rawAoa = [];
     let rawHeaders = [
-        "Mã SAP (Store)", "Tên Cửa Hàng", "Khu Vực", "Tên Sản Phẩm", 
-        "Trung Bình Bán/Ngày", "Xu Hướng (%)", "ADS T2-T6", "ADS T7-CN", 
-        "XU HƯỚNG GIAO (%)", "Leadtime", "Total Demand", "Tồn (Inv)", 
-        "Nhập (Input)", "Giảm trừ", "SOQ (GỢI Ý)", "Xu hướng", "SL ĐẶT", "GHI CHÚ"
+        "MÃ£ SAP (Store)", "TÃªn Cá»­a HÃ ng", "Khu Vá»±c", "TÃªn Sáº£n Pháº©m", 
+        "Trung BÃ¬nh BÃ¡n/NgÃ y", "Xu HÆ°á»›ng (%)", "ADS T2-T6", "ADS T7-CN", 
+        "XU HÆ¯á»šNG GIAO (%)", "Leadtime", "Total Demand", "Tá»“n (Inv)", 
+        "Nháº­p (Input)", "Giáº£m trá»«", "SOQ (Gá»¢I Ã)", "Xu hÆ°á»›ng", "SL Äáº¶T", "GHI CHÃš"
     ];
     rawAoa.push(rawHeaders);
     
@@ -2425,11 +2448,11 @@ btnExport.addEventListener('click', () => {
     XLSX.utils.book_append_sheet(workbook, rawWorksheet, "Data_Chi_Tiet");
     // ------------------------------------------------
 
-    // Khử dấu tiếng Việt và ký tự lạ để tránh Browser chặn tải
+    // Khá»­ dáº¥u tiáº¿ng Viá»‡t vÃ  kÃ½ tá»± láº¡ Ä‘á»ƒ trÃ¡nh Browser cháº·n táº£i
     let safeName = String(scheduleFileName).normalize('NFD').replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_\-]/g, "_");
     let exportName = `SOQ_Data_${safeName}.xlsx`;
 
-    // Custom File downloader to bypass 'Cần có quyền tải xuống' warning
+    // Custom File downloader to bypass 'Cáº§n cÃ³ quyá»n táº£i xuá»‘ng' warning
     try {
         let wbout = XLSX.write(workbook, { bookType: 'xlsx', type: 'binary' });
         function s2ab(s) {
@@ -2451,11 +2474,11 @@ btnExport.addEventListener('click', () => {
         }, 100);
 
     } catch (e) {
-        alert("Lỗi tải file: Trình duyệt của bạn khóa quyền tải cục bộ. Hãy mở trang này bằng Chrome nhé!");
+        alert("Lá»—i táº£i file: TrÃ¬nh duyá»‡t cá»§a báº¡n khÃ³a quyá»n táº£i cá»¥c bá»™. HÃ£y má»Ÿ trang nÃ y báº±ng Chrome nhÃ©!");
     }
 });
 
-// --- BỘ LỌC TÌM KIẾM ---
+// --- Bá»˜ Lá»ŒC TÃŒM KIáº¾M ---
 const searchStoreInput = document.getElementById('search-store');
 const searchProductInput = document.getElementById('search-product');
 const filterRegionSelect = document.getElementById('filter-region');
@@ -2468,11 +2491,11 @@ function populateRegionDropdown() {
     }
     const regions = new Set();
     finalResults.forEach(item => {
-        if (item.region && item.region !== 'Khác') regions.add(item.region);
+        if (item.region && item.region !== 'KhÃ¡c') regions.add(item.region);
     });
     let sortedRegions = Array.from(regions).sort();
-    let hasKhac = finalResults.some(item => !item.region || item.region === 'Khác');
-    if (hasKhac) sortedRegions.push('Khác');
+    let hasKhac = finalResults.some(item => !item.region || item.region === 'KhÃ¡c');
+    if (hasKhac) sortedRegions.push('KhÃ¡c');
     
     sortedRegions.forEach(r => {
         let opt = document.createElement('option');
@@ -2495,7 +2518,7 @@ function filterTable() {
         const sap = row.cells[0].textContent.toLowerCase();
         const storeName = row.cells[1].textContent.toLowerCase();
         const productName = row.cells[2].textContent.toLowerCase();
-        const region = row.getAttribute('data-region') || 'Khác';
+        const region = row.getAttribute('data-region') || 'KhÃ¡c';
         const xuHuong = row.getAttribute('data-xu-huong') || '';
         const lowerXuHuong = xuHuong.toLowerCase();
 
@@ -2507,9 +2530,9 @@ function filterTable() {
         if (trendActionQuery === "") {
             matchTrendAction = true;
         } else if (trendActionQuery === "bantot") {
-            matchTrendAction = lowerXuHuong.includes('tốt') || lowerXuHuong.includes('tot');
+            matchTrendAction = lowerXuHuong.includes('tá»‘t') || lowerXuHuong.includes('tot');
         } else if (trendActionQuery === "ngunggiao") {
-            matchTrendAction = lowerXuHuong.includes('ngừng') || lowerXuHuong.includes('ngưng') || lowerXuHuong.includes('ngung');
+            matchTrendAction = lowerXuHuong.includes('ngá»«ng') || lowerXuHuong.includes('ngÆ°ng') || lowerXuHuong.includes('ngung');
         } else if (trendActionQuery === "trong") {
             matchTrendAction = xuHuong.trim() === "" || xuHuong === "-";
         }
@@ -2531,7 +2554,7 @@ if (filterTrendActionSelect) {
 
 if (searchStoreInput && searchProductInput) {
     searchStoreInput.addEventListener('input', () => {
-        // Khi gõ tìm kiếm cửa hàng, tự động reset bảng về thứ tự chuẩn của riêng cửa hàng đó
+        // Khi gÃµ tÃ¬m kiáº¿m cá»­a hÃ ng, tá»± Ä‘á»™ng reset báº£ng vá» thá»© tá»± chuáº©n cá»§a riÃªng cá»­a hÃ ng Ä‘Ã³
         if (currentSort && currentSort.direction !== 0) {
             currentSort.column = null;
             currentSort.direction = 0;
@@ -2578,12 +2601,12 @@ function toggleSidebar() {
         if (sidebar.style.display === 'none') {
             sidebar.style.display = 'flex';
             buttons.forEach(btn => {
-                if (btn) btn.innerHTML = '<span>◄</span> Ẩn Menu trái';
+                if (btn) btn.innerHTML = '<span>â—„</span> áº¨n Menu trÃ¡i';
             });
         } else {
             sidebar.style.display = 'none';
             buttons.forEach(btn => {
-                if (btn) btn.innerHTML = '<span>►</span> Hiện Menu trái';
+                if (btn) btn.innerHTML = '<span>â–º</span> Hiá»‡n Menu trÃ¡i';
             });
         }
     }
@@ -2595,7 +2618,7 @@ if (btnToggleSidebar) {
 if (btnToggleSidebarWeekly) {
     btnToggleSidebarWeekly.addEventListener('click', toggleSidebar);
 }
-// --- ĐIỀU CHUYỂN MENU TAB LỊCH SỬ VÀ BẢNG TÍNH ---
+// --- ÄIá»€U CHUYá»‚N MENU TAB Lá»ŠCH Sá»¬ VÃ€ Báº¢NG TÃNH ---
 const navDashboard = document.getElementById('nav-dashboard');
 const navHistory = document.getElementById('nav-history');
 
@@ -2607,7 +2630,7 @@ if (navHistory && navDashboard) {
         isHistoryView = true;
         isArchiveView = false;
         
-        // Ẩn khu vực tải file và bảng chọn archive
+        // áº¨n khu vá»±c táº£i file vÃ  báº£ng chá»n archive
         document.querySelector('.upload-section').style.display = 'none';
         document.getElementById('archive-selector-container').style.display = 'none';
         document.getElementById('weekly-review-container').style.display = 'none';
@@ -2619,11 +2642,11 @@ if (navHistory && navDashboard) {
         let titleSpan = document.querySelector('.results-section h2');
         let btnExport = document.getElementById('btn-export');
 
-        // Hiện section kết quả trước để người dùng thấy đang load
+        // Hiá»‡n section káº¿t quáº£ trÆ°á»›c Ä‘á»ƒ ngÆ°á»i dÃ¹ng tháº¥y Ä‘ang load
         document.getElementById('results-section').style.display = 'block';
-        tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding: 2rem;">🔄 Đang tải lịch sử từ Cloud...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding: 2rem;">ðŸ”„ Äang táº£i lá»‹ch sá»­ tá»« Cloud...</td></tr>`;
 
-        // 1. Kiểm tra Firebase trước (Shared History)
+        // 1. Kiá»ƒm tra Firebase trÆ°á»›c (Shared History)
         if (typeof firebase !== 'undefined') {
             firebase.database().ref('latest_soq').once('value').then(async (snapshot) => {
                 const data = snapshot.val();
@@ -2634,21 +2657,21 @@ if (navHistory && navDashboard) {
                         currentDeliveryDateStr = data.deliveryDateStr;
                         saveToDB('soq_latest_delivery_date', currentDeliveryDateStr);
                     }
-                    // Dữ liệu hợp lệ (trong ngày)
-                    // Render bảng từ Array
+                    // Dá»¯ liá»‡u há»£p lá»‡ (trong ngÃ y)
+                    // Render báº£ng tá»« Array
                     finalResults = prepHistoricalData(data.results);
                     renderSOQTable(finalResults);
                     populateRegionDropdown();
                     btnExport.style.display = 'inline-block';
 
                     let timeStr = new Date(data.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-                    titleSpan.innerHTML = `Kết Quả Dự Báo <span style="font-size: 0.6em; background: rgba(76, 175, 80, 0.2); color: #4caf50; border: 1px solid #4caf50; padding: 4px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">Shared: ${data.userName} (${timeStr})</span>`;
+                    titleSpan.innerHTML = `Káº¿t Quáº£ Dá»± BÃ¡o <span style="font-size: 0.6em; background: rgba(76, 175, 80, 0.2); color: #4caf50; border: 1px solid #4caf50; padding: 4px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">Shared: ${data.userName} (${timeStr})</span>`;
                 } else {
-                    // Không có dữ liệu Cloud hôm nay -> Fallback về Local Cache của chính mình
+                    // KhÃ´ng cÃ³ dá»¯ liá»‡u Cloud hÃ´m nay -> Fallback vá» Local Cache cá»§a chÃ­nh mÃ¬nh
                     loadLocalHistoryFallback(tbody, titleSpan, btnExport);
                 }
             }).catch(err => {
-                console.error("Lỗi tải Cloud:", err);
+                console.error("Lá»—i táº£i Cloud:", err);
                 loadLocalHistoryFallback(tbody, titleSpan, btnExport);
             });
         } else {
@@ -2658,29 +2681,29 @@ if (navHistory && navDashboard) {
 
     function prepHistoricalData(arr) {
         return arr.map(item => {
-            // 1. Phân tích Xu hướng (Trend)
+            // 1. PhÃ¢n tÃ­ch Xu hÆ°á»›ng (Trend)
             let trendVal = String(item.trend || '-').trim();
-            let trendNum = parseFloat(trendVal.replace(/[▲▼+%\s]/g, ''));
+            let trendNum = parseFloat(trendVal.replace(/[â–²â–¼+%\s]/g, ''));
             let trendHtml = `<span>${trendVal}</span>`;
             
-            if (trendVal.toLowerCase().includes('new') || trendVal.toLowerCase().includes('mới')) {
-                trendHtml = `<span style="color: var(--success)">▲ Mới bán</span>`;
+            if (trendVal.toLowerCase().includes('new') || trendVal.toLowerCase().includes('má»›i')) {
+                trendHtml = `<span style="color: var(--success)">â–² Má»›i bÃ¡n</span>`;
             } else if (!isNaN(trendNum)) {
                 if (Math.abs(trendNum) < 1e-6) {
                     trendHtml = `<span>0.0%</span>`;
-                } else if (trendNum > 0 || trendVal.includes('+') || trendVal.includes('▲')) {
-                    trendHtml = `<span style="color: var(--success)">▲ ${Math.abs(trendNum).toFixed(1)}%</span>`;
-                } else if (trendNum < 0 || trendVal.includes('-') || trendVal.includes('▼')) {
-                    trendHtml = `<span style="color: var(--danger)">▼ ${Math.abs(trendNum).toFixed(1)}%</span>`;
+                } else if (trendNum > 0 || trendVal.includes('+') || trendVal.includes('â–²')) {
+                    trendHtml = `<span style="color: var(--success)">â–² ${Math.abs(trendNum).toFixed(1)}%</span>`;
+                } else if (trendNum < 0 || trendVal.includes('-') || trendVal.includes('â–¼')) {
+                    trendHtml = `<span style="color: var(--danger)">â–¼ ${Math.abs(trendNum).toFixed(1)}%</span>`;
                 }
             }
 
-            // 2. Phân tích Tăng trưởng (Growth)
+            // 2. PhÃ¢n tÃ­ch TÄƒng trÆ°á»Ÿng (Growth)
             let growthVal = String(item.growth || '-').trim();
-            let growthNum = parseFloat(growthVal.replace(/[▲▼+%\s]/g, ''));
+            let growthNum = parseFloat(growthVal.replace(/[â–²â–¼+%\s]/g, ''));
             let growthHtml = `<span>${growthVal}</span>`;
             
-            if (growthVal.toLowerCase().includes('new') || growthVal.toLowerCase().includes('mới')) {
+            if (growthVal.toLowerCase().includes('new') || growthVal.toLowerCase().includes('má»›i')) {
                 growthHtml = `<span style="color: var(--success)">${growthVal}</span>`;
             } else if (!isNaN(growthNum)) {
                 if (growthNum > 1e-6) {
@@ -2699,7 +2722,7 @@ if (navHistory && navDashboard) {
             // Clean undefineds to avoid "undefined" strings
             item.sap = item.sap || '';
             item.store = item.store || '';
-            item.region = item.region || 'Khác';
+            item.region = item.region || 'KhÃ¡c';
             item.product = item.product || '';
             item.ads = item.ads || '0.00';
             item.ads_weekday = item.ads_weekday || '0.00';
@@ -2714,9 +2737,9 @@ if (navHistory && navDashboard) {
             let xuHuongHtml = '<span>-</span>';
             if (item.xu_huong) {
                 let lowerAction = item.xu_huong.toLowerCase();
-                if (lowerAction.includes('tốt') || lowerAction.includes('tot')) {
+                if (lowerAction.includes('tá»‘t') || lowerAction.includes('tot')) {
                     xuHuongHtml = `<span style="background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3); padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.85em;">${item.xu_huong}</span>`;
-                } else if (lowerAction.includes('ngừng') || lowerAction.includes('ngưng') || lowerAction.includes('ngung')) {
+                } else if (lowerAction.includes('ngá»«ng') || lowerAction.includes('ngÆ°ng') || lowerAction.includes('ngung')) {
                     xuHuongHtml = `<span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); padding: 4px 8px; border-radius: 4px; font-weight: 600; font-size: 0.85em;">${item.xu_huong}</span>`;
                 } else {
                     xuHuongHtml = `<span style="background: rgba(255, 255, 255, 0.05); color: var(--text-main); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 0.85em;">${item.xu_huong}</span>`;
@@ -2728,22 +2751,22 @@ if (navHistory && navDashboard) {
         });
     }
 
-    // Hàm bổ trợ Load Local
+    // HÃ m bá»• trá»£ Load Local
     async function loadLocalHistoryFallback(tbody, titleSpan, btnExport) {
-        let histArr = await loadFromDB('soq_latest_array'); // Không dùng histHtml từ Cache vì có thể bị stale style
+        let histArr = await loadFromDB('soq_latest_array'); // KhÃ´ng dÃ¹ng histHtml tá»« Cache vÃ¬ cÃ³ thá»ƒ bá»‹ stale style
         let histName = await loadFromDB('soq_latest_filename');
 
         if (histArr && !histArr.invalidated) {
             finalResults = prepHistoricalData(histArr);
             renderSOQTable(finalResults);
-        populateRegionDropdown(); // Render lại từ mảng để áp dụng Style mới nhất
+        populateRegionDropdown(); // Render láº¡i tá»« máº£ng Ä‘á»ƒ Ã¡p dá»¥ng Style má»›i nháº¥t
             if (histName && !histName.invalidated) scheduleFileName = histName;
             btnExport.style.display = 'inline-block';
-            titleSpan.innerHTML = `Kết Quả Dự Báo <span style="font-size: 0.6em; background: rgba(255,152,0,0.2); color: #ff9800; border: 1px solid #ff9800; padding: 4px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">Local: Bản lưu máy bạn</span>`;
+            titleSpan.innerHTML = `Káº¿t Quáº£ Dá»± BÃ¡o <span style="font-size: 0.6em; background: rgba(255,152,0,0.2); color: #ff9800; border: 1px solid #ff9800; padding: 4px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">Local: Báº£n lÆ°u mÃ¡y báº¡n</span>`;
         } else {
             btnExport.style.display = 'none';
-            tbody.innerHTML = `<tr><td colspan="15" style="text-align:center; padding: 2.5rem; color: #ff9800; font-size: 1.1em;"><i class="fas fa-history" style="font-size: 2em; display: block; margin-bottom: 10px; opacity: 0.5;"></i>Không có lịch sử chia sẻ hoặc lịch sử máy bạn đã hết hạn trong ngày hôm nay.</td></tr>`;
-            titleSpan.innerHTML = `Kết Quả Dự Báo`;
+            tbody.innerHTML = `<tr><td colspan="15" style="text-align:center; padding: 2.5rem; color: #ff9800; font-size: 1.1em;"><i class="fas fa-history" style="font-size: 2em; display: block; margin-bottom: 10px; opacity: 0.5;"></i>KhÃ´ng cÃ³ lá»‹ch sá»­ chia sáº» hoáº·c lá»‹ch sá»­ mÃ¡y báº¡n Ä‘Ã£ háº¿t háº¡n trong ngÃ y hÃ´m nay.</td></tr>`;
+            titleSpan.innerHTML = `Káº¿t Quáº£ Dá»± BÃ¡o`;
         }
     }
 
@@ -2754,7 +2777,7 @@ if (navHistory && navDashboard) {
         isHistoryView = false;
         isArchiveView = false;
         
-        // Hiện lại khu vực Tải file
+        // Hiá»‡n láº¡i khu vá»±c Táº£i file
         document.querySelector('.upload-section').style.display = 'block';
         document.getElementById('archive-selector-container').style.display = 'none';
         document.getElementById('weekly-review-container').style.display = 'none';
@@ -2764,8 +2787,8 @@ if (navHistory && navDashboard) {
         
         let titleSpan = document.querySelector('.results-section h2');
         if (titleSpan && titleSpan.querySelector('span')) { 
-            // Dọn dẹp View Lịch sử (Ép người dùng bấn Tính SOQ lại để tải lại Live Data an toàn)
-            titleSpan.innerHTML = `Kết Quả Dự Báo`;
+            // Dá»n dáº¹p View Lá»‹ch sá»­ (Ã‰p ngÆ°á»i dÃ¹ng báº¥n TÃ­nh SOQ láº¡i Ä‘á»ƒ táº£i láº¡i Live Data an toÃ n)
+            titleSpan.innerHTML = `Káº¿t Quáº£ Dá»± BÃ¡o`;
             document.getElementById('soq-tbody').innerHTML = ''; 
             document.getElementById('results-section').style.display = 'none';
             finalResults = [];
@@ -2783,7 +2806,7 @@ if (navHistory && navDashboard) {
             if (dateStr) {
                 const date = new Date(dateStr);
                 if (!isNaN(date.getTime())) {
-                    const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+                    const days = ['Chá»§ Nháº­t', 'Thá»© Hai', 'Thá»© Ba', 'Thá»© TÆ°', 'Thá»© NÄƒm', 'Thá»© SÃ¡u', 'Thá»© Báº£y'];
                     const dayOfWeek = days[date.getDay()];
                     const parts = dateStr.split('-');
                     const formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
@@ -2804,24 +2827,24 @@ if (navHistory && navDashboard) {
             isHistoryView = false;
             isArchiveView = true;
             
-            // Ẩn khu vực tải file, hiện khung chọn lưu trữ
+            // áº¨n khu vá»±c táº£i file, hiá»‡n khung chá»n lÆ°u trá»¯
             document.querySelector('.upload-section').style.display = 'none';
             document.getElementById('archive-selector-container').style.display = 'block';
             document.getElementById('weekly-review-container').style.display = 'none';
             
-            // Hiện các cột lịch sử (chế độ xem chỉ đọc)
+            // Hiá»‡n cÃ¡c cá»™t lá»‹ch sá»­ (cháº¿ Ä‘á»™ xem chá»‰ Ä‘á»c)
             document.querySelectorAll('.history-col').forEach(c => c.style.display = 'table-cell');
             
-            // Ẩn nút lưu thay đổi (vì là archive xem lại chỉ đọc)
+            // áº¨n nÃºt lÆ°u thay Ä‘á»•i (vÃ¬ lÃ  archive xem láº¡i chá»‰ Ä‘á»c)
             let btnSave = document.getElementById('btn-save-changes');
             if (btnSave) btnSave.style.display = 'none';
             
-            // Dọn dẹp bảng và kết quả cũ
+            // Dá»n dáº¹p báº£ng vÃ  káº¿t quáº£ cÅ©
             let tbody = document.getElementById('soq-tbody');
             tbody.innerHTML = '';
             document.getElementById('results-section').style.display = 'none';
             
-            // Thiết lập mặc định ngày hôm qua cho date input
+            // Thiáº¿t láº­p máº·c Ä‘á»‹nh ngÃ y hÃ´m qua cho date input
             if (archiveDateInput) {
                 const today = new Date();
                 const yesterday = new Date(today);
@@ -2835,14 +2858,14 @@ if (navHistory && navDashboard) {
             }
             
             let titleSpan = document.querySelector('.results-section h2');
-            if (titleSpan) titleSpan.innerHTML = `Kết Quả Dự Báo`;
+            if (titleSpan) titleSpan.innerHTML = `Káº¿t Quáº£ Dá»± BÃ¡o`;
         });
     }
 
     const loadArchiveData = async () => {
         const dateStr = archiveDateInput ? archiveDateInput.value : '';
         if (!dateStr) {
-            alert("Vui lòng chọn ngày lưu trữ!");
+            alert("Vui lÃ²ng chá»n ngÃ y lÆ°u trá»¯!");
             return;
         }
         
@@ -2851,7 +2874,7 @@ if (navHistory && navDashboard) {
         let btnExport = document.getElementById('btn-export');
         
         document.getElementById('results-section').style.display = 'block';
-        tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding: 2rem;">🔄 Đang tải dữ liệu lưu trữ ngày ${dateStr.split('-').reverse().join('/')}...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding: 2rem;">ðŸ”„ Äang táº£i dá»¯ liá»‡u lÆ°u trá»¯ ngÃ y ${dateStr.split('-').reverse().join('/')}...</td></tr>`;
         
         const renderArchive = (data, sourceName) => {
             finalResults = prepHistoricalData(data.results || data);
@@ -2860,10 +2883,10 @@ if (navHistory && navDashboard) {
             if (data.filename) scheduleFileName = data.filename;
             btnExport.style.display = 'inline-block';
             let formattedDate = dateStr.split('-').reverse().join('/');
-            titleSpan.innerHTML = `Kết Quả Dự Báo <span style="font-size: 0.6em; background: rgba(33, 150, 243, 0.2); color: #2196f3; border: 1px solid #2196f3; padding: 4px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">Lưu trữ ${sourceName}: ${formattedDate}</span>`;
+            titleSpan.innerHTML = `Káº¿t Quáº£ Dá»± BÃ¡o <span style="font-size: 0.6em; background: rgba(33, 150, 243, 0.2); color: #2196f3; border: 1px solid #2196f3; padding: 4px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;">LÆ°u trá»¯ ${sourceName}: ${formattedDate}</span>`;
         };
 
-        // 1. Thử tải từ Firebase trước
+        // 1. Thá»­ táº£i tá»« Firebase trÆ°á»›c
         if (typeof firebase !== 'undefined') {
             try {
                 let snapshot = await firebase.database().ref('archive_soq/' + dateStr).once('value');
@@ -2873,11 +2896,11 @@ if (navHistory && navDashboard) {
                     return;
                 }
             } catch (err) {
-                console.error("Lỗi tải lưu trữ từ Cloud:", err);
+                console.error("Lá»—i táº£i lÆ°u trá»¯ tá»« Cloud:", err);
             }
         }
         
-        // 2. Fallback tải từ IndexedDB local
+        // 2. Fallback táº£i tá»« IndexedDB local
         try {
             let localData = await loadFromDB('soq_archive_' + dateStr);
             if (localData && (localData.results || Array.isArray(localData))) {
@@ -2885,11 +2908,11 @@ if (navHistory && navDashboard) {
                 return;
             }
         } catch (err) {
-            console.error("Lỗi tải lưu trữ Local:", err);
+            console.error("Lá»—i táº£i lÆ°u trá»¯ Local:", err);
         }
         
-        // 3. Không tìm thấy dữ liệu
-        tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding: 2.5rem; color: #ff9800; font-size: 1.1em;"><i class="fas fa-exclamation-triangle" style="font-size: 2em; display: block; margin-bottom: 10px; opacity: 0.5;"></i>Không tìm thấy dữ liệu lưu trữ ngày ${dateStr.split('-').reverse().join('/')} trên hệ thống.</td></tr>`;
+        // 3. KhÃ´ng tÃ¬m tháº¥y dá»¯ liá»‡u
+        tbody.innerHTML = `<tr><td colspan="17" style="text-align:center; padding: 2.5rem; color: #ff9800; font-size: 1.1em;"><i class="fas fa-exclamation-triangle" style="font-size: 2em; display: block; margin-bottom: 10px; opacity: 0.5;"></i>KhÃ´ng tÃ¬m tháº¥y dá»¯ liá»‡u lÆ°u trá»¯ ngÃ y ${dateStr.split('-').reverse().join('/')} trÃªn há»‡ thá»‘ng.</td></tr>`;
         btnExport.style.display = 'none';
     };
 
@@ -2912,7 +2935,7 @@ function renderSOQTable(data) {
     tbody.innerHTML = ``;
     data.forEach((item, index) => {
         let tr = document.createElement('tr');
-        tr.setAttribute('data-region', item.region || 'Khác');
+        tr.setAttribute('data-region', item.region || 'KhÃ¡c');
         tr.setAttribute('data-xu-huong', item.xu_huong || '');
         
         let finalOrderTd = '';
@@ -2921,7 +2944,7 @@ function renderSOQTable(data) {
             let finalVal = item.final_order !== undefined ? item.final_order : '';
             finalOrderTd = `<td><input type="number" class="final-order-input" data-index="${index}" value="${finalVal}" style="width: 80px; padding: 6px; text-align: center; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; background: #fff; color: #333;" placeholder="-" min="0"></td>`;
             let noteVal = item.note !== undefined ? item.note : '';
-            noteTd = `<td><input type="text" class="note-input" data-index="${index}" value="${noteVal}" style="width: 150px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #333;" placeholder="Ghi chú..."></td>`;
+            noteTd = `<td><input type="text" class="note-input" data-index="${index}" value="${noteVal}" style="width: 150px; padding: 6px; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #333;" placeholder="Ghi chÃº..."></td>`;
         } else if (isArchiveView) {
             let finalVal = item.final_order !== undefined ? item.final_order : '';
             finalOrderTd = `<td style="font-weight: bold; text-align: center; color: var(--primary);">${finalVal !== '' ? finalVal : '-'}</td>`;
@@ -3052,14 +3075,14 @@ document.querySelectorAll('.sortable').forEach(th => {
     });
 });
 
-// Ngăn lỗi cuộn chuột làm thay đổi số trong thẻ input type="number"
+// NgÄƒn lá»—i cuá»™n chuá»™t lÃ m thay Ä‘á»•i sá»‘ trong tháº» input type="number"
 document.addEventListener('wheel', function(event) {
     if (document.activeElement.type === 'number') {
         document.activeElement.blur();
     }
 });
 
-// --- BÁO CÁO TỔNG HỢP TUẦN ---
+// --- BÃO CÃO Tá»”NG Há»¢P TUáº¦N ---
 async function fetchDailyOrderArchive(dateStr) {
     if (typeof firebase !== 'undefined') {
         try {
@@ -3069,7 +3092,7 @@ async function fetchDailyOrderArchive(dateStr) {
                 return data.results;
             }
         } catch (e) {
-            console.error(`Lỗi tải archive Cloud ngày ${dateStr}:`, e);
+            console.error(`Lá»—i táº£i archive Cloud ngÃ y ${dateStr}:`, e);
         }
     }
     try {
@@ -3078,7 +3101,7 @@ async function fetchDailyOrderArchive(dateStr) {
             return localData.results || localData;
         }
     } catch (e) {
-        console.error(`Lỗi tải archive Local ngày ${dateStr}:`, e);
+        console.error(`Lá»—i táº£i archive Local ngÃ y ${dateStr}:`, e);
     }
     return null;
 }
@@ -3094,7 +3117,7 @@ async function fetchWeeklySalesArchive(mondayStr) {
         let localData = await loadFromDB('weekly_sales_archive_' + mondayStr);
         if (localData) return localData;
     } catch (e) {
-        console.error(`Lỗi tải sales archive Local tuần ${mondayStr}:`, e);
+        console.error(`Lá»—i táº£i sales archive Local tuáº§n ${mondayStr}:`, e);
     }
     if (typeof firebase !== 'undefined') {
         try {
@@ -3104,7 +3127,7 @@ async function fetchWeeklySalesArchive(mondayStr) {
                 return data.data;
             }
         } catch (e) {
-            console.error(`Lỗi tải sales archive Cloud tuần ${mondayStr}:`, e);
+            console.error(`Lá»—i táº£i sales archive Cloud tuáº§n ${mondayStr}:`, e);
         }
     }
     return null;
@@ -3112,7 +3135,7 @@ async function fetchWeeklySalesArchive(mondayStr) {
 
 async function loadWeeklyReview(startDateStr, endDateStr, filterMode) {
     const tbody = document.getElementById('weekly-review-tbody');
-    tbody.innerHTML = `<tr><td colspan="15" style="text-align:center; padding: 2rem;">🔄 Đang tổng hợp dữ liệu...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="15" style="text-align:center; padding: 2rem;">ðŸ”„ Äang tá»•ng há»£p dá»¯ liá»‡u...</td></tr>`;
     
     try {
         let dates = [];
@@ -3153,7 +3176,7 @@ async function loadWeeklyReview(startDateStr, endDateStr, filterMode) {
                 list.forEach(item => {
                     let sap = extractSAP(item.sap);
                     if (!sap) return;
-                    let region = item.region || globalStoreRegionMap.get(sap) || 'Khác';
+                    let region = item.region || globalStoreRegionMap.get(sap) || 'KhÃ¡c';
                     let storeName = item.store || globalStoreNamesMap.get(sap) || sap;
                     let productName = getGlobalNormalizedProduct(item.product);
                     if (!productName) return;
@@ -3241,7 +3264,7 @@ async function loadWeeklyReview(startDateStr, endDateStr, filterMode) {
                         if (pr && String(pr).toLowerCase().includes('retail kg')) qty /= 1000;
                         if (isNaN(qty)) return;
                         
-                        let region = globalStoreRegionMap.get(sap) || 'Khác';
+                        let region = globalStoreRegionMap.get(sap) || 'KhÃ¡c';
                         let storeName = globalStoreNamesMap.get(sap) || sap;
                         let key = `${region}_${sap}_${storeName}_${productName}`;
                         
@@ -3284,7 +3307,7 @@ async function loadWeeklyReview(startDateStr, endDateStr, filterMode) {
                             if (pr && String(pr).toLowerCase().includes('retail kg')) qty /= 1000;
                             if (isNaN(qty) || qty === 0) return;
                             
-                            let region = globalStoreRegionMap.get(sap) || 'Khác';
+                            let region = globalStoreRegionMap.get(sap) || 'KhÃ¡c';
                             let storeName = globalStoreNamesMap.get(sap) || sap;
                             let key = `${region}_${sap}_${storeName}_${productName}`;
                             
@@ -3338,8 +3361,8 @@ async function loadWeeklyReview(startDateStr, endDateStr, filterMode) {
         filterWeeklyReviewTable();
         
     } catch (err) {
-        console.error("Lỗi tổng hợp báo cáo tuần:", err);
-        tbody.innerHTML = `<tr><td colspan="15" style="text-align:center; padding: 2rem; color: var(--danger);">Có lỗi xảy ra khi tổng hợp dữ liệu: ${err.message}</td></tr>`;
+        console.error("Lá»—i tá»•ng há»£p bÃ¡o cÃ¡o tuáº§n:", err);
+        tbody.innerHTML = `<tr><td colspan="15" style="text-align:center; padding: 2rem; color: var(--danger);">CÃ³ lá»—i xáº£y ra khi tá»•ng há»£p dá»¯ liá»‡u: ${err.message}</td></tr>`;
     }
 }
 
@@ -3348,7 +3371,7 @@ function populateWeeklyRegionDropdown(dataList) {
     if (!selectEl) return;
     
     let selectedVal = selectEl.value;
-    selectEl.innerHTML = '<option value="">🗺️ Tất cả Khu vực</option>';
+    selectEl.innerHTML = '<option value="">ðŸ—ºï¸ Táº¥t cáº£ Khu vá»±c</option>';
     
     let regions = new Set();
     dataList.forEach(item => {
@@ -3373,14 +3396,14 @@ function renderWeeklyReviewTable(dataList) {
     tbody.innerHTML = '';
     
     if (dataList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="16" style="text-align:center; padding: 2rem; color: var(--text-muted);">Không có dữ liệu trong khoảng thời gian được chọn.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="16" style="text-align:center; padding: 2rem; color: var(--text-muted);">KhÃ´ng cÃ³ dá»¯ liá»‡u trong khoáº£ng thá»i gian Ä‘Æ°á»£c chá»n.</td></tr>`;
         document.getElementById('btn-export-weekly').style.display = 'none';
         return;
     }
     
     document.getElementById('btn-export-weekly').style.display = 'inline-block';
     
-    // Thêm dòng TỔNG CỘNG ở đầu bảng review tuần
+    // ThÃªm dÃ²ng Tá»”NG Cá»˜NG á»Ÿ Ä‘áº§u báº£ng review tuáº§n
     let totalOrderDays = [0, 0, 0, 0, 0, 0, 0];
     let totalOrderPcs = 0;
     let totalOrderKg = 0;
@@ -3418,7 +3441,7 @@ function renderWeeklyReviewTable(dataList) {
     }
     
     totalTr.innerHTML = `
-        <td colspan="3" style="text-align: center; color: var(--text-main); font-weight: bold; font-size: 1.05em;">TỔNG CỘNG</td>
+        <td colspan="3" style="text-align: center; color: var(--text-main); font-weight: bold; font-size: 1.05em;">Tá»”NG Cá»˜NG</td>
         ${totalOrderTds}
         <td style="text-align: center; color: var(--primary); font-weight: bold;">${totalOrderPcs > 0 ? totalOrderPcs.toLocaleString() : '-'}</td>
         <td style="text-align: center; color: var(--primary); font-weight: bold;">${totalOrderKg > 0 ? totalOrderKg.toFixed(2) : '-'}</td>
@@ -3429,7 +3452,7 @@ function renderWeeklyReviewTable(dataList) {
     `;
     tbody.appendChild(totalTr);
 
-    // Thêm các dòng chi tiết phía sau
+    // ThÃªm cÃ¡c dÃ²ng chi tiáº¿t phÃ­a sau
     dataList.forEach(item => {
         let tr = document.createElement('tr');
         
@@ -3492,18 +3515,18 @@ function filterWeeklyReviewTable() {
 
 function exportWeeklyReviewToExcel() {
     if (currentWeeklyFilteredList.length === 0) {
-        alert("Không có dữ liệu để xuất Excel!");
+        alert("KhÃ´ng cÃ³ dá»¯ liá»‡u Ä‘á»ƒ xuáº¥t Excel!");
         return;
     }
     
     let aoa = [];
     aoa.push([
-        "Khu Vực", "Mã SAP", "Tên Cửa Hàng", "Tên Sản Phẩm",
-        "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ Nhật",
-        "Tổng Đặt (Pcs)", "Tổng Đặt (Kg)", "Tổng Bán (Pcs)", "Tổng Bán (Kg)"
+        "Khu Vá»±c", "MÃ£ SAP", "TÃªn Cá»­a HÃ ng", "TÃªn Sáº£n Pháº©m",
+        "Thá»© 2", "Thá»© 3", "Thá»© 4", "Thá»© 5", "Thá»© 6", "Thá»© 7", "Chá»§ Nháº­t",
+        "Tá»•ng Äáº·t (Pcs)", "Tá»•ng Äáº·t (Kg)", "Tá»•ng BÃ¡n (Pcs)", "Tá»•ng BÃ¡n (Kg)"
     ]);
     
-    // Tính toán dòng TỔNG CỘNG trước
+    // TÃ­nh toÃ¡n dÃ²ng Tá»”NG Cá»˜NG trÆ°á»›c
     let totalOrderDays = [0, 0, 0, 0, 0, 0, 0];
     let totalOrderPcs = 0;
     let totalOrderKg = 0;
@@ -3521,7 +3544,7 @@ function exportWeeklyReviewToExcel() {
     });
     
     aoa.push([
-        "TỔNG CỘNG",
+        "Tá»”NG Cá»˜NG",
         "",
         "",
         "",
@@ -3538,7 +3561,7 @@ function exportWeeklyReviewToExcel() {
         totalSalesKg || 0
     ]);
 
-    // Thêm các dòng chi tiết phía sau
+    // ThÃªm cÃ¡c dÃ²ng chi tiáº¿t phÃ­a sau
     currentWeeklyFilteredList.forEach(item => {
         aoa.push([
             item.region,
@@ -3601,8 +3624,8 @@ function exportWeeklyReviewToExcel() {
             window.URL.revokeObjectURL(url);
         }, 0);
     } catch (e) {
-        console.error("Lỗi xuất Excel tuần:", e);
-        alert("Lỗi xuất Excel: " + e.message);
+        console.error("Lá»—i xuáº¥t Excel tuáº§n:", e);
+        alert("Lá»—i xuáº¥t Excel: " + e.message);
     }
 }
 
@@ -3656,7 +3679,7 @@ function populateWeeksDropdown() {
     const selectEl = document.getElementById('weekly-review-select');
     if (!selectEl) return;
     
-    selectEl.innerHTML = '<option value="">-- Chọn Tuần --</option>';
+    selectEl.innerHTML = '<option value="">-- Chá»n Tuáº§n --</option>';
     let weeks = getWeeksOfYear();
     weeks.forEach(w => {
         let opt = document.createElement('option');
@@ -3703,7 +3726,7 @@ if (btnLoadDateRange) {
         let start = document.getElementById('weekly-start-date').value;
         let end = document.getElementById('weekly-end-date').value;
         if (!start || !end) {
-            alert("Vui lòng nhập đầy đủ Từ ngày và Đến ngày!");
+            alert("Vui lÃ²ng nháº­p Ä‘áº§y Ä‘á»§ Tá»« ngÃ y vÃ  Äáº¿n ngÃ y!");
             return;
         }
         loadWeeklyReview(start, end, 'date-range');
@@ -3723,4 +3746,3 @@ if (weeklySearchProduct) {
 if (btnExportWeekly) {
     btnExportWeekly.addEventListener('click', exportWeeklyReviewToExcel);
 }
-
