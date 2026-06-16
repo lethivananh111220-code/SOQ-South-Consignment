@@ -1,4 +1,4 @@
-﻿// --- CẤU HÌNH FIREBASE ---
+// --- CẤU HÌNH FIREBASE ---
 // Bạn cần lấy thông tin này từ Firebase Console (https://console.firebase.google.com/)
 const firebaseConfig = {
     apiKey: "AIzaSyBHG5WoQVon5lgoyZNZ7agIVYJDjyZdRrY",
@@ -3052,10 +3052,22 @@ document.querySelectorAll('.sortable').forEach(th => {
     });
 });
 
-// Ngăn lỗi cuộn chuột làm thay đổi số trong thẻ input type="number"
+// Ngăn lỗi cuộn chuột và phím mũi tên làm thay đổi số trong thẻ input type="number"
 document.addEventListener('wheel', function(event) {
-    if (document.activeElement.type === 'number') {
-        document.activeElement.blur();
+    if ((document.activeElement && document.activeElement.type === 'number') || 
+        (event.target && event.target.type === 'number')) {
+        event.preventDefault();
+        if (document.activeElement && document.activeElement.type === 'number') {
+            document.activeElement.blur(); // Vẫn blur để tránh focus giả
+        }
+    }
+}, { passive: false });
+
+document.addEventListener('keydown', function(event) {
+    if (document.activeElement && document.activeElement.type === 'number') {
+        if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+            event.preventDefault();
+        }
     }
 });
 
