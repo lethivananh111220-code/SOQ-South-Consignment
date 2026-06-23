@@ -109,24 +109,31 @@ function buildMetadataMaps() {
     
     if (datasets.mapping_raw && datasets.mapping_raw.length > 0) {
         let headerRow = datasets.mapping_raw[0] || [];
-        let iOda = 1, iWm = 2;
+        let iOda = 1, iWm = 2, iSaleApp = -1;
         for (let c = 0; c < headerRow.length; c++) {
             let h = String(headerRow[c]).toUpperCase();
             if (h.includes('ODA')) iOda = c;
             else if (h.includes('WM')) iWm = c;
+            else if (h.includes('SALE APP') || h.includes('MERCHANDER')) iSaleApp = c;
         }
         for (let i = 1; i < datasets.mapping_raw.length; i++) {
             let r = datasets.mapping_raw[i];
             if (!r || !Array.isArray(r)) continue;
             let odaName = r[iOda] ? String(r[iOda]).trim() : '';
             let wmName = r[iWm] ? String(r[iWm]).trim().toLowerCase() : '';
+            let saleAppName = iSaleApp !== -1 && r[iSaleApp] ? String(r[iSaleApp]).trim().toLowerCase() : '';
             if (!odaName && !wmName && r.length >= 2) {
                 wmName = r[0] ? String(r[0]).trim().toLowerCase() : '';
                 odaName = r[1] ? String(r[1]).trim() : '';
             }
-            if (wmName && odaName) {
-                globalMappingMap.set(wmName, odaName);
+            if (odaName) {
                 globalStandardNamesSet.add(odaName.trim().toLowerCase());
+                if (wmName && wmName !== 'tên sản phẩm wm') {
+                    globalMappingMap.set(wmName, odaName);
+                }
+                if (saleAppName && saleAppName !== 'tên sản phẩm sale app (file merchander_report)') {
+                    globalMappingMap.set(saleAppName, odaName);
+                }
             }
         }
     }
@@ -990,7 +997,7 @@ btnCalculate.addEventListener('click', () => {
 
         if (datasets.mapping_raw && datasets.mapping_raw.length > 0) {
             let headerRow = datasets.mapping_raw[0] || [];
-            let iOda = 1, iWm = 2, iCat = 3;
+            let iOda = 1, iWm = 2, iCat = 3, iSaleApp = -1;
 
             // Nhận diện tự động cột bằng Tên Header
             for (let c = 0; c < headerRow.length; c++) {
@@ -998,6 +1005,7 @@ btnCalculate.addEventListener('click', () => {
                 if (h.includes('ODA')) iOda = c;
                 else if (h.includes('WM')) iWm = c;
                 else if (h.includes('NHÓM')) iCat = c;
+                else if (h.includes('SALE APP') || h.includes('MERCHANDER')) iSaleApp = c;
             }
 
             // Bắt đầu đọc từ dòng số 2 (Bỏ qua Header)
@@ -1008,6 +1016,7 @@ btnCalculate.addEventListener('click', () => {
                 let odaName = r[iOda] ? String(r[iOda]).trim() : '';
                 let wmName = r[iWm] ? String(r[iWm]).trim().toLowerCase() : '';
                 let category = r[iCat] ? String(r[iCat]).trim().toUpperCase() : '';
+                let saleAppName = iSaleApp !== -1 && r[iSaleApp] ? String(r[iSaleApp]).trim().toLowerCase() : '';
 
                 // Nếu ko có Header (file trống trơn 2 cột), chạy fallback truyền thống
                 if (!odaName && !wmName && r.length >= 2) {
@@ -1015,13 +1024,18 @@ btnCalculate.addEventListener('click', () => {
                     odaName = r[1] ? String(r[1]).trim() : '';
                 }
 
-                if (wmName && odaName && wmName !== 'tên sản phẩm wm') {
-                    mappingMap.set(wmName, odaName);
+                if (odaName) {
                     standardNamesSet.add(odaName.trim().toLowerCase());
-                    reverseMappingKeys.add(wmName);
-
                     if (category && category !== 'NHÓM HÀNG') {
                         productCategoryMap.set(odaName.trim().toLowerCase(), category);
+                    }
+                    if (wmName && wmName !== 'tên sản phẩm wm') {
+                        mappingMap.set(wmName, odaName);
+                        reverseMappingKeys.add(wmName);
+                    }
+                    if (saleAppName && saleAppName !== 'tên sản phẩm sale app (file merchander_report)') {
+                        mappingMap.set(saleAppName, odaName);
+                        reverseMappingKeys.add(saleAppName);
                     }
                 }
             }
